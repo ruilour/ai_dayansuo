@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useAuth } from '../hooks/useAuth'
 import { IconFlask, IconGlobe, IconMessageSquare, IconUser, IconLogOut } from './Icons'
+import NotificationBell from './NotificationBell'
 
 export default function Navbar() {
   const user = useStore((s) => s.user)
@@ -44,6 +45,7 @@ export default function Navbar() {
                   <IconUser className="icon" />
                   {user.username}
                 </Link>
+                <NotificationBell />
                 <button
                   onClick={logout}
                   className="btn-ghost text-sm"

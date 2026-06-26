@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
 import api from '../api'
 import { useStore } from '../store/useStore'
-import { IconHeart, IconHeartFilled, IconMessageCircle, IconUser, IconChevronLeft, IconChevronDown, IconChevronRight, IconFlask } from '../components/Icons'
+import { IconHeart, IconHeartFilled, IconBookmark, IconBookmarkFilled, IconMessageCircle, IconUser, IconChevronLeft, IconChevronDown, IconChevronRight, IconFlask } from '../components/Icons'
 import CommentList from '../components/CommentList'
 
 function ReasoningBlock({ content }) {
@@ -47,6 +47,7 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [liking, setLiking] = useState(false)
+  const [bookmarking, setBookmarking] = useState(false)
 
   useEffect(() => {
     fetchPost()
@@ -83,6 +84,27 @@ export default function PostDetail() {
       // ignore
     } finally {
       setLiking(false)
+    }
+  }
+
+  const handleBookmark = async () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    if (bookmarking) return
+    setBookmarking(true)
+    try {
+      const { data } = await api.post(`/posts/${id}/bookmark`)
+      setPost((prev) => ({
+        ...prev,
+        is_bookmarked: data.bookmarked,
+        bookmarks_count: data.bookmarks_count,
+      }))
+    } catch {
+      // ignore
+    } finally {
+      setBookmarking(false)
     }
   }
 
@@ -193,6 +215,19 @@ export default function PostDetail() {
           {post.is_liked ? <IconHeartFilled className="icon" /> : <IconHeart className="icon" />}
           {post.is_liked ? '已赞' : '点赞'}
           <span className="text-xs opacity-70">({post.likes_count})</span>
+        </button>
+        <button
+          onClick={handleBookmark}
+          disabled={bookmarking}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+          style={{
+            backgroundColor: post.is_bookmarked ? 'var(--color-brand-50)' : 'var(--color-surface-card)',
+            color: post.is_bookmarked ? 'var(--color-brand-600)' : 'var(--color-text-muted)',
+            border: `1px solid ${post.is_bookmarked ? 'var(--color-brand-200)' : 'var(--color-surface-border)'}`,
+          }}
+        >
+          {post.is_bookmarked ? <IconBookmarkFilled className="icon" /> : <IconBookmark className="icon" />}
+          {post.is_bookmarked ? '已收藏' : '收藏'}
         </button>
         <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--color-text-placeholder)' }}>
           <IconMessageCircle className="icon" />

@@ -1,4 +1,4 @@
-import { IconHeart, IconMessageCircle, IconUser } from './Icons'
+import { IconHeart, IconMessageCircle, IconUser, IconBookmark } from './Icons'
 
 export default function PostCard({ post }) {
   return (
@@ -28,6 +28,12 @@ export default function PostCard({ post }) {
             <IconMessageCircle className="icon" />
             {post.comments_count || 0}
           </span>
+          {post.bookmarks_count !== undefined && (
+            <span className="inline-flex items-center gap-1 text-xs">
+              <IconBookmark className="icon" />
+              {post.bookmarks_count || 0}
+            </span>
+          )}
         </div>
       </div>
     </div>

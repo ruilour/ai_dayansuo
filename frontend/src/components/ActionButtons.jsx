@@ -10,25 +10,20 @@ export default function ActionButtons() {
 
   const handleSave = async () => {
     if (!currentConversation.id) return
+    let isAlreadySaved = false
     try {
       await api.post(`/conversations/${currentConversation.id}/save`)
       markConversationSaved()
-      setShareConversationId(currentConversation.id)
-      setShowShareModal(true)
     } catch (err) {
       if (err.response?.status === 409) {
-        const confirm = window.confirm('该对话已有保存记录，是否更新？')
-        if (confirm) {
-          // 重新保存逻辑（先删除再保存 — 简化处理）
-          await api.delete(`/conversations/${currentConversation.id}`)
-          const { data } = await api.post('/conversations', { title: '新对话' })
-          // 重新发送消息...
-          alert('请在新对话中继续')
-        }
+        isAlreadySaved = true
       } else {
         alert('保存失败，请重试')
+        return
       }
     }
+    setShareConversationId(currentConversation.id)
+    setShowShareModal(true)
   }
 
   const handleContinue = () => {

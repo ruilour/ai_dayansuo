@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import PostCard from '../components/PostCard'
-import { IconUser, IconHeart, IconMessageCircle, IconFlask, IconMessageSquare } from '../components/Icons'
+import { IconHeart, IconMessageCircle, IconFlask, IconMessageSquare } from '../components/Icons'
 
 export default function UserProfile() {
   const { id } = useParams()
@@ -12,6 +12,9 @@ export default function UserProfile() {
   const [posts, setPosts] = useState([])
   const [tab, setTab] = useState('posts') // posts | bookmarks
   const [loading, setLoading] = useState(true)
+  const tabRef = useRef(tab)
+
+  useEffect(() => { tabRef.current = tab }, [tab])
 
   useEffect(() => { fetchUser() }, [id])
   useEffect(() => {
@@ -34,18 +37,18 @@ export default function UserProfile() {
     setLoading(true)
     try {
       const { data } = await api.get(`/users/${id}/posts?page=1&page_size=20`)
-      setPosts(data.items || [])
+      if (tabRef.current === 'posts') setPosts(data.items || [])
     } catch { /* ignore */ }
-    finally { setLoading(false) }
+    finally { if (tabRef.current === 'posts') setLoading(false) }
   }
 
   const fetchBookmarks = async () => {
     setLoading(true)
     try {
       const { data } = await api.get('/bookmarks?page=1&page_size=20')
-      setPosts(data.items || [])
+      if (tabRef.current === 'bookmarks') setPosts(data.items || [])
     } catch { /* ignore */ }
-    finally { setLoading(false) }
+    finally { if (tabRef.current === 'bookmarks') setLoading(false) }
   }
 
   if (!user) return null

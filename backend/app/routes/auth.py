@@ -96,6 +96,8 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
 async def refresh(request: TokenRefresh, db: Session = Depends(get_db)):
     payload = verify_token(request.refresh_token, "refresh")
     user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token 无效")
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")

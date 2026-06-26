@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.limiter import limiter
 from app.routes.auth import router as auth_router
+from app.routes.conversations import router as conversation_router
 from app.utils.logger import logger
 
 
@@ -39,6 +40,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(conversation_router)
 
 
 @app.get("/api/health")

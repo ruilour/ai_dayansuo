@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
 import PostDetail from './pages/PostDetail'
+import UserProfile from './pages/UserProfile'
 
 function ProtectedRoute({ children }) {
   const token = useStore((s) => s.token)
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
           <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/user/:id" element={<UserProfile />} />
         </Routes>
       </main>
     </div>

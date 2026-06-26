@@ -39,10 +39,11 @@ export default function Navbar() {
                   <IconMessageSquare className="icon" />
                   开始对话
                 </Link>
-                <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                <Link to={`/user/${user.id}`} className="inline-flex items-center gap-1.5 text-sm hover:underline"
+                  style={{ color: 'var(--color-text-muted)' }}>
                   <IconUser className="icon" />
                   {user.username}
-                </span>
+                </Link>
                 <button
                   onClick={logout}
                   className="btn-ghost text-sm"

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { IconFlask, IconLoader } from '../components/Icons'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -18,49 +19,70 @@ export default function Login() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm animate-in">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-2">🧪</div>
-          <h1 className="text-2xl font-bold text-gray-800">登录</h1>
-          <p className="text-sm text-gray-500 mt-1">欢迎回到 AI答研所</p>
+          <div className="flex justify-center mb-3">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--color-brand-50)' }}>
+              <IconFlask className="icon-lg" style={{ width: 28, height: 28, color: 'var(--color-brand-500)' }} />
+            </div>
+          </div>
+          <h1 className="heading-page">登录</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>欢迎回到 AI答研所</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm px-3 py-2 rounded-lg">{error}</div>
+            <div className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'oklch(0.58 0.18 30 / 0.1)', color: 'oklch(0.58 0.18 30)' }}>
+              {error}
+            </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>用户名</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 outline-none text-sm transition-all duration-150 rounded-lg"
+              style={{
+                border: '1px solid var(--color-surface-border)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-body)',
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-brand-500)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--color-surface-border)'}
               placeholder="请输入用户名"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>密码</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 outline-none text-sm transition-all duration-150 rounded-lg"
+              style={{
+                border: '1px solid var(--color-surface-border)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-body)',
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-brand-500)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--color-surface-border)'}
               placeholder="请输入密码"
               required
             />
           </div>
 
-          {/* Turnstile 占位 — 开发模式用 checkbox 模拟 */}
-          <label className="flex items-center gap-2 text-sm text-gray-600">
+          {/* Turnstile 占位 */}
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
             <input
               type="checkbox"
               checked={turnstileOk}
               onChange={(e) => setTurnstileOk(e.target.checked)}
               className="rounded"
+              style={{ accentColor: 'var(--color-brand-500)' }}
             />
             我不是机器人（开发模式）
           </label>
@@ -68,14 +90,15 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading || !turnstileOk}
-            className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary w-full text-sm"
           >
+            {loading ? <IconLoader className="icon" /> : null}
             {loading ? '登录中...' : '登录'}
           </button>
 
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
             还没有账号？{' '}
-            <Link to="/register" className="text-blue-600 hover:underline">注册</Link>
+            <Link to="/register" style={{ color: 'var(--color-brand-600)' }} className="hover:underline">注册</Link>
           </p>
         </form>
       </div>

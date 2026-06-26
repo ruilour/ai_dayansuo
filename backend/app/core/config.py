@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-v4-flash"
-    DEEPSEEK_BASE_URL: str = "https://api.deepseek.cn/chat/completions"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/chat/completions"
     TURNSTILE_SECRET_KEY: str = ""
     TURNSTILE_SITE_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:5173"

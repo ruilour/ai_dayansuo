@@ -15,6 +15,7 @@ class Post(Base):
     summary = Column(String(500), nullable=False)
     full_content = Column(Text, nullable=False)
     reasoning_content = Column(Text, nullable=True)
+    category = Column(String(20), default="其他", nullable=False)
     likes_count = Column(Integer, default=0)
     comments_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

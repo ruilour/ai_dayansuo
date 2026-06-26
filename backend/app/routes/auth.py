@@ -1,5 +1,5 @@
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -39,20 +39,20 @@ async def verify_turnstile(token: str) -> bool:
 
 @router.post("/register", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def register(request: UserRegister, db: Session = Depends(get_db)):
+async def register(request: Request, body: UserRegister, db: Session = Depends(get_db)):
     # 验证 Turnstile
-    if not await verify_turnstile(request.turnstile_token):
+    if not await verify_turnstile(body.turnstile_token):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码验证失败")
 
     # 检查用户名是否已存在
-    if db.query(User).filter(User.username == request.username).first():
+    if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被注册")
 
     # 创建用户
     user = User(
-        username=request.username,
-        password_hash=get_password_hash(request.password),
-        email=request.email,
+        username=body.username,
+        password_hash=get_password_hash(body.password),
+        email=body.email,
     )
     db.add(user)
     db.commit()
@@ -71,14 +71,14 @@ async def register(request: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login(request: UserLogin, db: Session = Depends(get_db)):
+async def login(request: Request, body: UserLogin, db: Session = Depends(get_db)):
     # 验证 Turnstile
-    if not await verify_turnstile(request.turnstile_token):
+    if not await verify_turnstile(body.turnstile_token):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码验证失败")
 
     # 查找用户
-    user = db.query(User).filter(User.username == request.username).first()
-    if not user or not verify_password(request.password, user.password_hash):
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
 
     # 生成 token
@@ -94,8 +94,8 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def refresh(request: TokenRefresh, db: Session = Depends(get_db)):
-    payload = verify_token(request.refresh_token, "refresh")
+async def refresh(request: Request, body: TokenRefresh, db: Session = Depends(get_db)):
+    payload = verify_token(body.refresh_token, "refresh")
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token 无效")

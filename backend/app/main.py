@@ -9,8 +9,11 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.limiter import limiter
 from app.routes.auth import router as auth_router
+from app.routes.categories import router as categories_router
 from app.routes.conversations import router as conversation_router
 from app.routes.posts import router as posts_router
+from app.routes.comments import router as comments_router
+from app.routes.search import router as search_router
 from app.utils.logger import logger
 
 
@@ -41,8 +44,11 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(categories_router)
 app.include_router(conversation_router)
 app.include_router(posts_router)
+app.include_router(comments_router)
+app.include_router(search_router)
 
 
 @app.get("/api/health")

@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
+import PostDetail from './pages/PostDetail'
 
 function ProtectedRoute({ children }) {
   const token = useStore((s) => s.token)
@@ -20,7 +21,7 @@ function PublicRoute({ children }) {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-surface)' }}>
       <Navbar />
       <main>
         <Routes>
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+          <Route path="/post/:id" element={<PostDetail />} />
         </Routes>
       </main>
     </div>

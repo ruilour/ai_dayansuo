@@ -58,3 +58,20 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
     return user
+
+
+def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """可选的用户认证，未登录时返回 None"""
+    if credentials is None:
+        return None
+    try:
+        payload = verify_token(credentials.credentials, "access")
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        return db.query(User).filter(User.id == int(user_id)).first()
+    except HTTPException:
+        return None

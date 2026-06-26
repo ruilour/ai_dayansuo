@@ -15,6 +15,7 @@ from app.routes.conversations import router as conversation_router
 from app.routes.posts import router as posts_router
 from app.routes.comments import router as comments_router
 from app.routes.search import router as search_router
+from app.routes.users import router as users_router
 from app.utils.logger import logger
 
 
@@ -51,6 +52,7 @@ app.include_router(conversation_router)
 app.include_router(posts_router)
 app.include_router(comments_router)
 app.include_router(search_router)
+app.include_router(users_router)
 
 
 @app.get("/api/health")

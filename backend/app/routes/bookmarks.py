@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.routes.notification_helper import create_notification
 from app.models.bookmark import PostBookmark
 from app.models.post import Post
 from app.models.user import User
@@ -45,6 +46,7 @@ def toggle_bookmark(
         bm = PostBookmark(user_id=current_user.id, post_id=post_id)
         db.add(bm)
         post.bookmarks_count += 1
+        create_notification(db, post.user_id, current_user.id, "bookmark", post_id)
         db.commit()
         return {"bookmarked": True, "bookmarks_count": post.bookmarks_count}
 

@@ -6,6 +6,7 @@ from app.core.security import get_current_user
 from app.models.comment import Comment
 from app.models.post import Post
 from app.models.user import User
+from app.routes.notification_helper import create_notification
 from app.schemas.comment import (
     CommentCreate,
     CommentItem,
@@ -99,6 +100,7 @@ def create_comment(
     )
     db.add(comment)
     post.comments_count += 1
+    create_notification(db, post.user_id, current_user.id, "comment", post_id)
     db.commit()
     db.refresh(comment)
 
@@ -145,6 +147,7 @@ def reply_comment(
     if post:
         post.comments_count += 1
 
+    create_notification(db, parent.user_id, current_user.id, "reply", parent.post_id, parent.id)
     db.commit()
     db.refresh(reply)
 

@@ -11,6 +11,7 @@ from app.models.comment import PostLike
 from app.models.conversation import Conversation
 from app.models.post import Post
 from app.models.user import User
+from app.routes.notification_helper import create_notification
 from app.services.summarizer import generate_summary
 
 router = APIRouter(prefix="/api/posts", tags=["帖子"])
@@ -304,5 +305,6 @@ def toggle_like(
         like = PostLike(user_id=current_user.id, post_id=post_id)
         db.add(like)
         post.likes_count += 1
+        create_notification(db, post.user_id, current_user.id, "like", post_id)
         db.commit()
         return LikeResponse(liked=True, likes_count=post.likes_count)

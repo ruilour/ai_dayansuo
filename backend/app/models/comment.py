@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -17,7 +17,7 @@ class Comment(Base):
 
     user = relationship("User", backref="comments")
     post = relationship("Post", backref="comments")
-    parent = relationship("Comment", backref="replies", remote_side=[id], cascade="all, delete-orphan")
+    parent = relationship("Comment", backref="replies", remote_side=[id], passive_deletes=True)
 
 
 class PostLike(Base):
@@ -27,3 +27,7 @@ class PostLike(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "post_id", name="unique_user_post_like"),
+    )

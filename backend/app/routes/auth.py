@@ -93,6 +93,7 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def refresh(request: TokenRefresh, db: Session = Depends(get_db)):
     payload = verify_token(request.refresh_token, "refresh")
     user_id = payload.get("sub")

@@ -25,8 +25,9 @@ async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
     async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream("POST", settings.DEEPSEEK_BASE_URL, json=payload, headers=headers) as response:
             if response.status_code != 200:
-                error_text = await response.aread()
-                yield f"data: {json.dumps({'type': 'error', 'content': f'AI 服务错误: {response.status_code}'})}\n\n"
+                error_body = await response.aread()
+                error_detail = error_body.decode("utf-8", errors="replace")[:500]
+                yield f"data: {json.dumps({'type': 'error', 'content': f'AI 服务错误 ({response.status_code}): {error_detail}'})}\n\n"
                 return
 
             async for line in response.aiter_lines():

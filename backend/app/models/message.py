@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Index
 from app.core.database import Base
 
 
@@ -13,3 +13,5 @@ class Message(Base):
     content = Column(Text, nullable=False)
     reasoning_content = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+Index("idx_message_conversation_id", "conversation_id")

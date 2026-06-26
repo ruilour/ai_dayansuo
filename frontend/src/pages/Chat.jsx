@@ -6,6 +6,7 @@ import ActionButtons from '../components/ActionButtons'
 import ShareModal from '../components/ShareModal'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeSanitize from 'rehype-sanitize'
 
 function ReasoningBlock({ content }) {
   const [expanded, setExpanded] = useState(true)
@@ -148,7 +149,7 @@ export default function Chat() {
                 ) : (
                   <div className="prose prose-sm max-w-none">
                     {msg.reasoning_content && <ReasoningBlock content={msg.reasoning_content} />}
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
                   </div>
                 )}
               </div>
@@ -161,7 +162,7 @@ export default function Chat() {
               <div className="max-w-[80%] w-full">
                 {streamingReasoning && <ReasoningBlock content={streamingReasoning} />}
                 <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{streamingContent}</ReactMarkdown>
                 </div>
                 <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1" />
               </div>

@@ -10,6 +10,7 @@ from app.core.database import engine, Base
 from app.core.limiter import limiter
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversation_router
+from app.routes.posts import router as posts_router
 from app.utils.logger import logger
 
 
@@ -33,7 +34,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS.split(","),
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +42,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(conversation_router)
+app.include_router(posts_router)
 
 
 @app.get("/api/health")

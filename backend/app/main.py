@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.limiter import limiter
+from app.routes.auth import router as auth_router
 from app.utils.logger import logger
 
 
@@ -36,6 +37,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 
 @app.get("/api/health")

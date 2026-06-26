@@ -18,6 +18,7 @@ class Post(Base):
     category = Column(String(20), default="其他", nullable=False)
     likes_count = Column(Integer, default=0)
     comments_count = Column(Integer, default=0)
+    bookmarks_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

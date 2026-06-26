@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_user_optional
+from app.models.bookmark import PostBookmark
 from app.models.comment import PostLike
 from app.models.conversation import Conversation
 from app.models.post import Post
@@ -32,7 +33,9 @@ class PostItem(BaseModel):
     username: str | None
     likes_count: int
     comments_count: int
+    bookmarks_count: int = 0
     is_liked: bool = False
+    is_bookmarked: bool = False
     created_at: str
 
     class Config:
@@ -55,7 +58,9 @@ class PostDetail(BaseModel):
     username: str | None
     likes_count: int
     comments_count: int
+    bookmarks_count: int = 0
     is_liked: bool = False
+    is_bookmarked: bool = False
     created_at: str
 
     class Config:
@@ -87,12 +92,22 @@ def list_posts(
     items = []
     for p in posts:
         is_liked = False
+        is_bookmarked = False
         if current_user:
             is_liked = (
                 db.query(PostLike)
                 .filter(
                     PostLike.user_id == current_user.id,
                     PostLike.post_id == p.id,
+                )
+                .first()
+                is not None
+            )
+            is_bookmarked = (
+                db.query(PostBookmark)
+                .filter(
+                    PostBookmark.user_id == current_user.id,
+                    PostBookmark.post_id == p.id,
                 )
                 .first()
                 is not None
@@ -106,7 +121,9 @@ def list_posts(
                 username=p.user.username if p.user else None,
                 likes_count=p.likes_count,
                 comments_count=p.comments_count,
+                bookmarks_count=p.bookmarks_count,
                 is_liked=is_liked,
+                is_bookmarked=is_bookmarked,
                 created_at=p.created_at.isoformat() if p.created_at else "",
             )
         )
@@ -197,7 +214,9 @@ async def create_post(
         username=current_user.username,
         likes_count=0,
         comments_count=0,
+        bookmarks_count=0,
         is_liked=False,
+        is_bookmarked=False,
         created_at=post.created_at.isoformat() if post.created_at else "",
     )
 
@@ -216,12 +235,22 @@ def get_post(
         raise HTTPException(status_code=404, detail="帖子不存在")
 
     is_liked = False
+    is_bookmarked = False
     if current_user:
         is_liked = (
             db.query(PostLike)
             .filter(
                 PostLike.user_id == current_user.id,
                 PostLike.post_id == post.id,
+            )
+            .first()
+            is not None
+        )
+        is_bookmarked = (
+            db.query(PostBookmark)
+            .filter(
+                PostBookmark.user_id == current_user.id,
+                PostBookmark.post_id == post.id,
             )
             .first()
             is not None
@@ -237,7 +266,9 @@ def get_post(
         username=post.user.username if post.user else None,
         likes_count=post.likes_count,
         comments_count=post.comments_count,
+        bookmarks_count=post.bookmarks_count,
         is_liked=is_liked,
+        is_bookmarked=is_bookmarked,
         created_at=post.created_at.isoformat() if post.created_at else "",
     )
 

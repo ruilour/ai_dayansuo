@@ -10,6 +10,7 @@ export default function ShareModal() {
 
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
+  const [category, setCategory] = useState('其他')
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState('success') // success | form | done
@@ -23,6 +24,7 @@ export default function ShareModal() {
         conversation_id: shareConversationId,
         title: title.trim() || undefined,
         summary: summary.trim() || undefined,
+        category: category,
       })
       setStep('done')
     } catch (err) {
@@ -134,6 +136,26 @@ export default function ShareModal() {
                 placeholder="AI 会自动生成摘要，你也可以手动修改"
                 maxLength={500}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>分类</label>
+              <div className="flex flex-wrap gap-2">
+                {['技术', '科学', '生活', '学习', '创意', '其他'].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                    style={{
+                      backgroundColor: category === cat ? 'var(--color-brand-500)' : 'transparent',
+                      color: category === cat ? 'white' : 'var(--color-text-muted)',
+                      border: `1px solid ${category === cat ? 'var(--color-brand-500)' : 'var(--color-surface-border)'}`,
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
             {error && (
               <div className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'oklch(0.58 0.18 30 / 0.1)', color: 'var(--color-danger, oklch(0.58 0.18 30))' }}>

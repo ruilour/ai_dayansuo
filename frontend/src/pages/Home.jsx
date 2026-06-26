@@ -14,6 +14,11 @@ export default function Home() {
   const fetchingRef = useRef(false)
   const navigate = useNavigate()
 
+  // 分类过滤
+  const [activeCategory, setActiveCategory] = useState(null)
+  const categoryRef = useRef(null)
+  const prevCategoryRef = useRef(null)
+
   // 搜索状态
   const [keyword, setKeyword] = useState('')
   const [searchResults, setSearchResults] = useState(null) // null = 未搜索, [] = 搜了但无结果
@@ -25,7 +30,7 @@ export default function Home() {
     fetchingRef.current = true
     setLoading(true)
     try {
-      const { data } = await api.get(`/posts?page=${page}&page_size=10`)
+      const { data } = await api.get(`/posts?page=${page}&page_size=10${categoryRef.current ? `&category=${categoryRef.current}` : ''}`)
       setPosts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id))
         const newItems = data.items.filter((item) => !existingIds.has(item.id))
@@ -45,6 +50,37 @@ export default function Home() {
   useEffect(() => {
     fetchPosts()
   }, [])
+
+  // 分类切换时重置列表
+  useEffect(() => {
+    if (prevCategoryRef.current === activeCategory) return
+    prevCategoryRef.current = activeCategory
+    categoryRef.current = activeCategory
+
+    if (fetchingRef.current) return
+    setPosts([])
+    setPage(1)
+    setHasMore(true)
+
+    const fetchFirstPage = async () => {
+      fetchingRef.current = true
+      setLoading(true)
+      try {
+        const url = `/posts?page=1&page_size=10${activeCategory ? `&category=${encodeURIComponent(activeCategory)}` : ''}`
+        const { data } = await api.get(url)
+        setPosts(data.items || [])
+        setHasMore(data.has_more)
+        setPage(2)
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false)
+        setInitialLoading(false)
+        fetchingRef.current = false
+      }
+    }
+    fetchFirstPage()
+  }, [activeCategory])
 
   useEffect(() => {
     const el = loaderRef.current
@@ -150,6 +186,35 @@ export default function Home() {
           </button>
         </div>
       )}
+
+      {/* 分类过滤栏 */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={() => setActiveCategory(null)}
+          className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+          style={{
+            backgroundColor: !activeCategory ? 'var(--color-brand-500)' : 'var(--color-surface-card)',
+            color: !activeCategory ? 'white' : 'var(--color-text-muted)',
+            border: `1px solid ${!activeCategory ? 'var(--color-brand-500)' : 'var(--color-surface-border)'}`,
+          }}
+        >
+          全部
+        </button>
+        {['技术', '科学', '生活', '学习', '创意', '其他'].map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+            style={{
+              backgroundColor: activeCategory === cat ? 'var(--color-brand-500)' : 'var(--color-surface-card)',
+              color: activeCategory === cat ? 'white' : 'var(--color-text-muted)',
+              border: `1px solid ${activeCategory === cat ? 'var(--color-brand-500)' : 'var(--color-surface-border)'}`,
+            }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
       {/* 空状态 */}
       {displayingPosts.length === 0 && !initialLoading && !searching ? (

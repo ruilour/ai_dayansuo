@@ -3,6 +3,11 @@ import { IconHeart, IconMessageCircle, IconUser } from './Icons'
 export default function PostCard({ post }) {
   return (
     <div className="card p-5 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 flex flex-col h-full">
+      {post.category && post.category !== '其他' && (
+        <span className="badge mb-2" style={{ alignSelf: 'flex-start' }}>
+          {post.category}
+        </span>
+      )}
       <h3 className="font-display font-semibold line-clamp-2 mb-1.5" style={{ color: 'var(--color-text-primary)', fontSize: '1.0625rem' }}>
         {post.title}
       </h3>

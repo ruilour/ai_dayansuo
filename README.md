@@ -1,4 +1,4 @@
-# AI答研所
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/a74754ac-8792-4c6b-a7ff-78bdefc6369e" /># AI答研所
 
 > AI 给出答案，人来判断对错 — AI 回答的探讨与验证社区
 
@@ -25,15 +25,18 @@
 | 📱 **响应式** | ✅ | Tailwind 适配桌面和移动端 |
 
 广场页面
-![alt text](image.png)
-![alt text](image-2.png)
-![alt text](image-1.png)
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/7a8717c0-81aa-4159-8ee2-b2866b74dc65" />
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/c4a996b5-b8f4-4934-987b-e1a0c63b441b" />
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/7698c8e5-5505-4713-94b8-e3aebde8c645" />
+
 
 个人首页
-![alt text](image-3.png)
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/b6bb22ce-048e-414c-a7a4-4f436a703823" />
+
 
 ai对话页面
-![alt text](image-4.png)
+<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/39bdaa0e-2771-4cc3-aca0-42bfe3d710fb" />
+
 ---
 
 ## 技术栈

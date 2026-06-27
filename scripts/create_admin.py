@@ -2,7 +2,9 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+backend_dir = os.path.join(os.path.dirname(__file__), '..', 'backend')
+sys.path.insert(0, backend_dir)
+os.chdir(backend_dir)  # 确保 pydantic-settings 能找到 .env 文件
 
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash

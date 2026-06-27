@@ -109,7 +109,7 @@ export default function UserProfile() {
           <p className="empty-state-title">{tab === 'posts' ? '还没有发布帖子' : '还没有收藏帖子'}</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 items-stretch">
+        <div className="grid gap-3 md:grid-cols-3 items-stretch">
           {posts.map((post) => (
             <div key={post.id} onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer animate-up flex">
               <PostCard post={post} />

@@ -91,7 +91,10 @@ def has_blocked_content_from_db(text: str, patterns: list[re.Pattern]) -> bool:
 
 async def ai_review_content(text: str) -> dict:
     """第5层：AI 审核 — 调用内置 AI 模型判断是否违规"""
-    from app.services.ai_service import chat_with_ai
+    import json
+    import httpx
+    from app.core.config import settings
+
     prompt = f"""请审核以下内容是否违规。只需要返回一个 JSON 对象，不要返回其他内容：
 {{
   "is_abuse": true/false,
@@ -103,17 +106,29 @@ async def ai_review_content(text: str) -> dict:
 评分越高越可能违规，超过 70 分建议标记为可疑。
 
 内容：
-{text[:2000]}  # 只检查前 2000 字符
-"""
+{text[:2000]}"""
     try:
-        result = await chat_with_ai(prompt)
-        import json
-        # 从 AI 回复中提取 JSON
-        result_text = result if isinstance(result, str) else str(result)
-        # 尝试解析 JSON
-        json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
+        if not settings.DEEPSEEK_API_KEY:
+            return {"is_abuse": False, "categories": [], "score": 0, "reason": "AI 审核未配置"}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                settings.DEEPSEEK_BASE_URL,
+                headers={
+                    "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.DEEPSEEK_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
     except Exception:
         pass
     return {"is_abuse": False, "categories": [], "score": 0, "reason": "审核失败，默认通过"}

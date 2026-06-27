@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { IconBell, IconX, IconCheck, IconMessageCircle, IconHeart, IconReply, IconBookmark } from './Icons'
@@ -21,18 +21,32 @@ export default function NotificationBell() {
   const navigate = useNavigate()
   const ref = useRef(null)
 
-  // Poll unread count every 30s
-  useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const { data } = await api.get('/notifications/unread-count')
-        setUnreadCount(data.count)
-      } catch { /* ignore */ }
-    }
-    fetchCount()
-    const interval = setInterval(fetchCount, 30000)
-    return () => clearInterval(interval)
+  // Fetch unread count
+  const fetchCount = useCallback(async () => {
+    try {
+      const { data } = await api.get('/notifications/unread-count')
+      setUnreadCount(data.count)
+    } catch { /* ignore */ }
   }, [])
+
+  // Poll every 15s
+  useEffect(() => {
+    fetchCount()
+    const interval = setInterval(fetchCount, 15000)
+    return () => clearInterval(interval)
+  }, [fetchCount])
+
+  // Refetch on tab visibility change and window focus
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === 'visible') fetchCount() }
+    const onFocus = () => fetchCount()
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [fetchCount])
 
   // Click outside to close
   useEffect(() => {

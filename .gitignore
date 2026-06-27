@@ -24,5 +24,8 @@ Thumbs.db
 uploads/*
 !uploads/.gitkeep
 
+# ChromaDB 向量数据库持久化目录
+chroma_db/
+
 # Django
 *.log

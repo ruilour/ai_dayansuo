@@ -1,3 +1,4 @@
+import html
 import json
 
 import httpx
@@ -49,9 +50,9 @@ async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
         for src in rag_context:
             context_xml_parts.append(
                 f'  <source post_id="{src["post_id"]}" '
-                f'username="{src["username"]}" '
-                f'title="{src["title"]}">'
-                f'\n    {src["summary"][:500]}'
+                f'username="{html.escape(src.get("username", ""), quote=True)}" '
+                f'title="{html.escape(src.get("title", ""), quote=True)}">'
+                f'\n    {html.escape(src.get("summary", "")[:500])}'
                 f'\n  </source>'
             )
         context_xml_parts.append('</context>')

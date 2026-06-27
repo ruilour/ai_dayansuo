@@ -27,7 +27,7 @@ def toggle_bookmark(
     db: Session = Depends(get_db),
 ):
     """切换收藏状态"""
-    check_not_muted(current_user)
+    check_not_muted(current_user, db)
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")

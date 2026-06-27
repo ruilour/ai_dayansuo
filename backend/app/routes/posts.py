@@ -148,7 +148,7 @@ async def create_post(
     db: Session = Depends(get_db),
 ):
     """从已保存的对话创建帖子"""
-    check_not_muted(current_user)
+    check_not_muted(current_user, db)
     # 内容安全检查
     err = validate_post_content(body.title, body.summary)
     if err:

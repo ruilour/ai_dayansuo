@@ -90,7 +90,7 @@ def create_comment(
     db: Session = Depends(get_db),
 ):
     """对帖子发表一级评论"""
-    check_not_muted(current_user)
+    check_not_muted(current_user, db)
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
@@ -135,7 +135,7 @@ def reply_comment(
     db: Session = Depends(get_db),
 ):
     """回复某条评论（创建二级评论）"""
-    check_not_muted(current_user)
+    check_not_muted(current_user, db)
     parent = db.query(Comment).filter(Comment.id == comment_id).first()
     if not parent:
         raise HTTPException(status_code=404, detail="评论不存在")

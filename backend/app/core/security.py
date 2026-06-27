@@ -96,33 +96,33 @@ def get_current_user_optional(
         user = db.query(User).filter(User.id == int(user_id)).first()
         if user is None:
             return None
-
-        # 封禁检查（与 get_current_user 逻辑一致）
-        if user.status == "banned":
-            if user.banned_until and user.banned_until > datetime.now(timezone.utc):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"账号已被封禁，原因：{user.status_reason or '无'}，到期时间：{user.banned_until.isoformat()}"
-                )
-            elif user.banned_until and user.banned_until <= datetime.now(timezone.utc):
-                # 封禁已到期，自动恢复
-                user.status = "active"
-                user.banned_until = None
-                user.status_reason = None
-                db.commit()
-            else:
-                # banned_until 为 null 表示永久封禁
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"账号已被永久封禁，原因：{user.status_reason or '无'}"
-                )
-
-        return user
     except HTTPException:
         return None
 
+    # 封禁检查（在 try/except 之外，确保 403 能正常传播）
+    if user.status == "banned":
+        if user.banned_until and user.banned_until > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"账号已被封禁，原因：{user.status_reason or '无'}，到期时间：{user.banned_until.isoformat()}"
+            )
+        elif user.banned_until and user.banned_until <= datetime.now(timezone.utc):
+            # 封禁已到期，自动恢复
+            user.status = "active"
+            user.banned_until = None
+            user.status_reason = None
+            db.commit()
+        else:
+            # banned_until 为 null 表示永久封禁
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"账号已被永久封禁，原因：{user.status_reason or '无'}"
+            )
 
-def check_not_muted(user: User):
+    return user
+
+
+def check_not_muted(user: User, db: Session):
     """检查用户是否被禁言，被禁言则抛出 403"""
     if user.status == "muted":
         now = datetime.now(timezone.utc)

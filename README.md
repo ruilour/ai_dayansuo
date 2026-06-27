@@ -24,6 +24,16 @@
 | 🔐 **管理员后台** | ✅ | 统计面板、举报处理、用户管理、敏感词管理 |
 | 📱 **响应式** | ✅ | Tailwind 适配桌面和移动端 |
 
+广场页面
+![alt text](image.png)
+![alt text](image-2.png)
+![alt text](image-1.png)
+
+个人首页
+![alt text](image-3.png)
+
+ai对话页面
+![alt text](image-4.png)
 ---
 
 ## 技术栈

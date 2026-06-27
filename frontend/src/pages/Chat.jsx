@@ -83,6 +83,7 @@ export default function Chat() {
     if (!input.trim() || isStreaming) return
     const message = input.trim()
     setInput('')
+    setCitations(null)  // 清除上一轮的引用
     addMessage({ role: 'user', content: message })
     setIsStreaming(true)
     resetStreaming()
@@ -120,7 +121,6 @@ export default function Chat() {
             addMessage({ role: 'assistant', content: useStore.getState().streamingContent, reasoning_content: useStore.getState().streamingReasoning })
             resetStreaming()
             setIsStreaming(false)
-            setCitations(null)
           } else if (data.type === 'error') {
             alert(data.content)
             setIsStreaming(false)
@@ -189,6 +189,15 @@ export default function Chat() {
           )}
 
           <div ref={messagesEndRef} />
+
+          {/* 流结束后显示引用来源 */}
+          {citations && !isStreaming && (
+            <div className="flex justify-start animate-in">
+              <div className="max-w-[80%] w-full">
+                <CitationBadge citations={citations} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 三按钮 */}

@@ -228,6 +228,18 @@ async def create_post(
     db.commit()
     db.refresh(post)
 
+    # 异步建立向量索引（不阻塞响应）
+    try:
+        from app.services.embedding_service import EmbeddingService
+        from app.services.vector_store import VectorStore
+        text = f"{post.title} {post.summary or ''}"
+        embedding = await EmbeddingService.embed_text(text)
+        if embedding:
+            store = VectorStore()
+            store.add_post(post.id, post.title, current_user.username, embedding, post.summary or "")
+    except Exception:
+        pass  # 索引失败不影响发帖
+
     return PostItem(
         id=post.id,
         title=post.title,

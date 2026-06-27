@@ -138,6 +138,13 @@ def resolve_report(
         post = db.query(Post).filter(Post.id == report.target_id).first()
         if post:
             db.delete(post)
+            # 同步删除向量索引
+            try:
+                from app.services.vector_store import VectorStore
+                store = VectorStore()
+                store.delete_post(report.target_id)
+            except Exception:
+                pass
     elif body.action == "delete" and report.target_type == "comment":
         comment = db.query(Comment).filter(Comment.id == report.target_id).first()
         if comment:

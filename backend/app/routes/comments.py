@@ -15,7 +15,7 @@ from app.schemas.comment import (
     ReplyCreate,
     ReplyItem,
 )
-from app.services.content_safety import validate_comment_content
+from app.services.content_safety import validate_comment_content, full_content_check
 
 router = APIRouter(tags=["评论"])
 
@@ -35,7 +35,7 @@ def list_comments(
     # 获取所有一级评论 (parent_id IS NULL)
     top_comments = (
         db.query(Comment)
-        .filter(Comment.post_id == post_id, Comment.parent_id.is_(None))
+        .filter(Comment.post_id == post_id, Comment.parent_id.is_(None), Comment.is_hidden == False)
         .order_by(Comment.created_at.asc())
         .all()
     )
@@ -45,7 +45,7 @@ def list_comments(
         # 获取该评论的所有二级回复
         replies = (
             db.query(Comment)
-            .filter(Comment.parent_id == c.id)
+            .filter(Comment.parent_id == c.id, Comment.is_hidden == False)
             .order_by(Comment.created_at.asc())
             .all()
         )
@@ -82,7 +82,7 @@ def list_comments(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("20/hour")
-def create_comment(
+async def create_comment(
     request: Request,
     post_id: int,
     body: CommentCreate,
@@ -98,6 +98,16 @@ def create_comment(
     err = validate_comment_content(body.content)
     if err:
         raise HTTPException(status_code=422, detail=err)
+
+    # 深度安全检查（5层过滤）
+    check_result = await full_content_check(
+        text=body.content,
+        db=db,
+        user_id=current_user.id,
+        content_type="comment",
+    )
+    if not check_result["passed"]:
+        raise HTTPException(status_code=422, detail=check_result["reason"])
 
     comment = Comment(
         post_id=post_id,
@@ -127,7 +137,7 @@ def create_comment(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("20/hour")
-def reply_comment(
+async def reply_comment(
     request: Request,
     comment_id: int,
     body: ReplyCreate,
@@ -143,6 +153,16 @@ def reply_comment(
     err = validate_comment_content(body.content)
     if err:
         raise HTTPException(status_code=422, detail=err)
+
+    # 深度安全检查（5层过滤）
+    check_result = await full_content_check(
+        text=body.content,
+        db=db,
+        user_id=current_user.id,
+        content_type="comment",
+    )
+    if not check_result["passed"]:
+        raise HTTPException(status_code=422, detail=check_result["reason"])
 
     reply = Comment(
         post_id=parent.post_id,

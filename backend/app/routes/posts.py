@@ -13,7 +13,7 @@ from app.models.conversation import Conversation
 from app.models.post import Post
 from app.models.user import User
 from app.routes.notification_helper import create_notification
-from app.services.content_safety import validate_post_content
+from app.services.content_safety import validate_post_content, full_content_check
 from app.services.summarizer import generate_summary
 
 router = APIRouter(prefix="/api/posts", tags=["帖子"])
@@ -86,7 +86,7 @@ def list_posts(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     """获取帖子列表（未登录也可查看）"""
-    query = db.query(Post).order_by(Post.created_at.desc())
+    query = db.query(Post).filter(Post.is_hidden == False).order_by(Post.created_at.desc())
     if category:
         query = query.filter(Post.category == category)
     total = query.count()
@@ -153,6 +153,17 @@ async def create_post(
     err = validate_post_content(body.title, body.summary)
     if err:
         raise HTTPException(status_code=422, detail=err)
+
+    # 深度安全检查（5层过滤）
+    check_result = await full_content_check(
+        text=body.summary or "",
+        db=db,
+        user_id=current_user.id,
+        content_type="post",
+        title=body.title,
+    )
+    if not check_result["passed"]:
+        raise HTTPException(status_code=422, detail=check_result["reason"])
 
     conversation = (
         db.query(Conversation)
@@ -241,7 +252,7 @@ def get_post(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     """获取帖子详情"""
-    post = db.query(Post).filter(Post.id == post_id).first()
+    post = db.query(Post).filter(Post.id == post_id, Post.is_hidden == False).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
 

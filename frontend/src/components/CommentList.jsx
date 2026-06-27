@@ -25,6 +25,7 @@ export default function CommentList({ postId, onCommentChange }) {
   const [replyText, setReplyText] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [reportingId, setReportingId] = useState(null)
 
   // 加载评论
   useEffect(() => {
@@ -104,6 +105,27 @@ export default function CommentList({ postId, onCommentChange }) {
       alert('删除失败')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  // 举报
+  const handleReport = async (targetType, targetId) => {
+    const reason = prompt('举报原因：\n1. 广告 (spam)\n2. 辱骂 (abuse)\n3. 色情 (porn)\n4. 其他 (other)\n\n请输入选项数字或直接输入原因代码：')
+    if (!reason) return
+    const reasonMap = { '1': 'spam', '2': 'abuse', '3': 'porn', '4': 'other' }
+    const reasonCode = reasonMap[reason] || reason
+    if (!['spam', 'abuse', 'porn', 'other'].includes(reasonCode)) {
+      alert('无效的举报原因')
+      return
+    }
+    setReportingId(targetId)
+    try {
+      await api.post('/reports', { target_type: targetType, target_id: targetId, reason: reasonCode })
+      alert('举报已提交')
+    } catch (err) {
+      alert(err.response?.data?.detail || '举报失败')
+    } finally {
+      setReportingId(null)
     }
   }
 
@@ -198,9 +220,11 @@ export default function CommentList({ postId, onCommentChange }) {
               setReplyText={setReplyText}
               sendingReply={sendingReply}
               deletingId={deletingId}
+              reportingId={reportingId}
               onReply={handleReply}
               onDelete={handleDelete}
               onDeleteReply={handleDeleteReply}
+              onReport={handleReport}
             />
           ))}
         </div>
@@ -219,9 +243,11 @@ function CommentItem({
   setReplyText,
   sendingReply,
   deletingId,
+  reportingId,
   onReply,
   onDelete,
   onDeleteReply,
+  onReport,
 }) {
   const isReplying = replyTo?.id === comment.id
 
@@ -277,6 +303,18 @@ function CommentItem({
               >
                 <IconTrash2 className="icon" />
                 删除
+              </button>
+            )}
+            {user && (
+              <button
+                onClick={() => onReport('comment', comment.id)}
+                disabled={reportingId === comment.id}
+                className="inline-flex items-center gap-1 text-xs transition-colors"
+                style={{ color: 'var(--color-text-placeholder)' }}
+                onMouseOver={e => e.currentTarget.style.color = 'var(--color-danger, oklch(0.65 0.18 30))'}
+                onMouseOut={e => e.currentTarget.style.color = 'var(--color-text-placeholder)'}
+              >
+                举报
               </button>
             )}
           </div>
@@ -352,6 +390,18 @@ function CommentItem({
                       >
                         <IconTrash2 className="icon" />
                         删除
+                      </button>
+                    )}
+                    {user && (
+                      <button
+                        onClick={() => onReport('comment', reply.id)}
+                        disabled={reportingId === reply.id}
+                        className="inline-flex items-center gap-1 text-xs mt-1 transition-colors"
+                        style={{ color: 'var(--color-text-placeholder)' }}
+                        onMouseOver={e => e.currentTarget.style.color = 'var(--color-danger, oklch(0.65 0.18 30))'}
+                        onMouseOut={e => e.currentTarget.style.color = 'var(--color-text-placeholder)'}
+                      >
+                        举报
                       </button>
                     )}
                   </div>

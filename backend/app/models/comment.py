@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -13,6 +13,7 @@ class Comment(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
     content = Column(Text, nullable=False)
+    is_hidden = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="comments")

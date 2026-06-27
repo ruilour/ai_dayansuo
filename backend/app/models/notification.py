@@ -11,7 +11,7 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     actor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     type = Column(String(20), nullable=False)  # comment / reply / like / bookmark
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=True)
     comment_id = Column(Integer, nullable=True)
     post_title = Column(String(100), nullable=True)
     is_read = Column(Boolean, default=False)

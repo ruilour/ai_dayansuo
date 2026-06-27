@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.limiter import limiter
+from app.core.security import check_not_muted, get_current_user
 from app.models.comment import Comment
 from app.models.post import Post
 from app.models.user import User
@@ -14,6 +15,7 @@ from app.schemas.comment import (
     ReplyCreate,
     ReplyItem,
 )
+from app.services.content_safety import validate_comment_content
 
 router = APIRouter(tags=["评论"])
 
@@ -79,24 +81,28 @@ def list_comments(
     response_model=CommentItem,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("20/hour")
 def create_comment(
+    request: Request,
     post_id: int,
-    request: CommentCreate,
+    body: CommentCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """对帖子发表一级评论"""
+    check_not_muted(current_user)
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
 
-    if not request.content.strip():
-        raise HTTPException(status_code=400, detail="评论内容不能为空")
+    err = validate_comment_content(body.content)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
 
     comment = Comment(
         post_id=post_id,
         user_id=current_user.id,
-        content=request.content.strip(),
+        content=body.content.strip(),
     )
     db.add(comment)
     post.comments_count += 1
@@ -120,25 +126,29 @@ def create_comment(
     response_model=ReplyItem,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("20/hour")
 def reply_comment(
+    request: Request,
     comment_id: int,
-    request: ReplyCreate,
+    body: ReplyCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """回复某条评论（创建二级评论）"""
+    check_not_muted(current_user)
     parent = db.query(Comment).filter(Comment.id == comment_id).first()
     if not parent:
         raise HTTPException(status_code=404, detail="评论不存在")
 
-    if not request.content.strip():
-        raise HTTPException(status_code=400, detail="回复内容不能为空")
+    err = validate_comment_content(body.content)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
 
     reply = Comment(
         post_id=parent.post_id,
         user_id=current_user.id,
         parent_id=comment_id,
-        content=request.content.strip(),
+        content=body.content.strip(),
     )
     db.add(reply)
 

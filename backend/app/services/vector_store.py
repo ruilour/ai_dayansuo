@@ -1,8 +1,12 @@
 import os
+import shutil
+import logging
 import chromadb
 from chromadb.config import Settings
 
-CHROMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chroma_db")
+logger = logging.getLogger(__name__)
+
+CHROMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "chroma_db")
 
 
 class VectorStore:
@@ -34,7 +38,6 @@ class VectorStore:
             )
         except Exception:
             # ChromaDB 损坏，重建
-            import shutil
             if os.path.exists(CHROMA_DIR):
                 shutil.rmtree(CHROMA_DIR)
             self.client = chromadb.PersistentClient(
@@ -53,7 +56,6 @@ class VectorStore:
         username: str,
         embedding: list[float],
         summary: str = "",
-        content: str = "",
     ):
         """存入帖子向量"""
         self.collection.upsert(
@@ -92,7 +94,7 @@ class VectorStore:
         try:
             self.collection.delete(ids=[str(post_id)])
         except Exception:
-            pass
+            logger.warning("Failed to delete vector for post %d", post_id, exc_info=True)
 
     def count(self) -> int:
         """知识库帖子总数"""
@@ -113,20 +115,10 @@ async def rag_search(query_text: str, top_k: int = 5) -> list[dict]:
     return store.search(embedding, top_k)
 
 
-def reindex_all_posts(db):
-    """重建所有帖子索引（脚本用）
-
-    遍历数据库中所有非隐藏帖子，用 EmbeddingService 生成向量并存入
-    ChromaDB。使用 asyncio.run() 同步调用异步 Embedding API。
-
-    Args:
-        db: SQLAlchemy Session 对象
-    Returns:
-        int: 成功索引的帖子数量
-    """
+async def _reindex_all_posts_async(db):
+    """异步遍历所有帖子并建立向量索引"""
     from app.models.post import Post
     from app.services.embedding_service import EmbeddingService
-    import asyncio
     posts = db.query(Post).filter(Post.is_hidden == False).all()
     store = VectorStore()
     count = 0
@@ -135,7 +127,7 @@ def reindex_all_posts(db):
         if not text.strip():
             continue
         try:
-            embedding = asyncio.run(EmbeddingService.embed_text(text))
+            embedding = await EmbeddingService.embed_text(text)
             if embedding:
                 username = p.user.username if p.user else "unknown"
                 store.add_post(p.id, p.title, username, embedding, p.summary or "")
@@ -143,3 +135,18 @@ def reindex_all_posts(db):
         except Exception:
             continue
     return count
+
+
+def reindex_all_posts(db):
+    """重建所有帖子索引（脚本用）
+
+    遍历数据库中所有非隐藏帖子，用 EmbeddingService 生成向量并存入
+    ChromaDB。使用 asyncio.run() 调用异步内部函数。
+
+    Args:
+        db: SQLAlchemy Session 对象
+    Returns:
+        int: 成功索引的帖子数量
+    """
+    import asyncio
+    return asyncio.run(_reindex_all_posts_async(db))

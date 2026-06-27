@@ -48,6 +48,8 @@ export default function PostDetail() {
   const [error, setError] = useState('')
   const [liking, setLiking] = useState(false)
   const [bookmarking, setBookmarking] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [feedback, setFeedback] = useState('') // toast 反馈
 
   useEffect(() => {
     fetchPost()
@@ -75,11 +77,13 @@ export default function PostDetail() {
     setLiking(true)
     try {
       const { data } = await api.post(`/posts/${id}/like`)
+      const wasLiked = post?.is_liked
       setPost((prev) => ({
         ...prev,
         is_liked: data.liked,
         likes_count: data.likes_count,
       }))
+      showFeedback(data.liked ? '已点赞' : '已取消点赞')
     } catch {
       // ignore
     } finally {
@@ -101,11 +105,41 @@ export default function PostDetail() {
         is_bookmarked: data.bookmarked,
         bookmarks_count: data.bookmarks_count,
       }))
+      showFeedback(data.bookmarked ? '已收藏' : '已取消收藏')
     } catch {
       // ignore
     } finally {
       setBookmarking(false)
     }
+  }
+
+  const handleReport = async (targetType, targetId) => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    const reason = prompt('举报原因：\n1. 广告 (spam)\n2. 辱骂 (abuse)\n3. 色情 (porn)\n4. 其他 (other)\n\n请输入选项数字或直接输入原因代码：')
+    if (!reason) return
+    const reasonMap = { '1': 'spam', '2': 'abuse', '3': 'porn', '4': 'other' }
+    const reasonCode = reasonMap[reason] || reason
+    if (!['spam', 'abuse', 'porn', 'other'].includes(reasonCode)) {
+      alert('无效的举报原因')
+      return
+    }
+    setReporting(true)
+    try {
+      await api.post('/reports', { target_type: targetType, target_id: targetId, reason: reasonCode })
+      showFeedback('举报已提交')
+    } catch (err) {
+      alert(err.response?.data?.detail || '举报失败')
+    } finally {
+      setReporting(false)
+    }
+  }
+
+  const showFeedback = (msg) => {
+    setFeedback(msg)
+    setTimeout(() => setFeedback(''), 2000)
   }
 
   // 加载中
@@ -197,7 +231,7 @@ export default function PostDetail() {
       </div>
 
       {/* 点赞栏 */}
-      <div className="flex items-center gap-4 py-4" style={{ borderTop: '1px solid var(--color-surface-border)' }}>
+      <div className="flex items-center gap-4 py-4 relative" style={{ borderTop: '1px solid var(--color-surface-border)' }}>
         <button
           onClick={handleLike}
           disabled={liking}
@@ -233,7 +267,25 @@ export default function PostDetail() {
           <IconMessageCircle className="icon" />
           {post.comments_count} 条评论
         </span>
+        {user && (
+          <button
+            onClick={() => handleReport('post', post.id)}
+            disabled={reporting}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-150 ml-auto"
+            style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-surface-border)' }}
+          >
+            举报
+          </button>
+        )}
       </div>
+
+      {/* 操作反馈 toast */}
+      {feedback && (
+        <div className="text-sm text-center py-2 mb-4 rounded-lg animate-in transition-all"
+          style={{ backgroundColor: 'var(--color-brand-50)', color: 'var(--color-brand-600)' }}>
+          {feedback}
+        </div>
+      )}
 
       {/* 评论区 */}
       <CommentList

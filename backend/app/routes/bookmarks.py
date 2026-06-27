@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.limiter import limiter
+from app.core.security import check_not_muted, get_current_user
 from app.routes.notification_helper import create_notification
 from app.models.bookmark import PostBookmark
 from app.models.post import Post
@@ -18,12 +19,15 @@ class BookmarkResponse(BaseModel):
 
 
 @router.post("/api/posts/{post_id}/bookmark", response_model=BookmarkResponse)
+@limiter.limit("30/hour")
 def toggle_bookmark(
+    request: Request,
     post_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """切换收藏状态"""
+    check_not_muted(current_user, db)
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")

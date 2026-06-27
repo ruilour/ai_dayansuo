@@ -11,7 +11,8 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
-    turnstile_token: str
+    turnstile_token: str = ""
+    skip_turnstile: bool = False
 
 
 class TokenRefresh(BaseModel):
@@ -22,6 +23,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     avatar: str | None
+    role: str = "user"
 
     class Config:
         from_attributes = True

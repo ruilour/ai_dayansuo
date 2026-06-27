@@ -30,7 +30,7 @@ export function useAuth() {
     }
   }
 
-  const login = async (username, password, turnstileToken) => {
+  const login = async (username, password, turnstileToken, skipTurnstile = false) => {
     setLoading(true)
     setError('')
     try {
@@ -38,6 +38,7 @@ export function useAuth() {
         username,
         password,
         turnstile_token: turnstileToken,
+        skip_turnstile: skipTurnstile,
       })
       setAuth(data.user, data.access_token, data.refresh_token)
       navigate('/')

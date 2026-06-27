@@ -1,17 +1,19 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user, get_current_user_optional
+from app.core.limiter import limiter
+from app.core.security import check_not_muted, get_current_user, get_current_user_optional
 from app.models.bookmark import PostBookmark
 from app.models.comment import PostLike
 from app.models.conversation import Conversation
 from app.models.post import Post
 from app.models.user import User
 from app.routes.notification_helper import create_notification
+from app.services.content_safety import validate_post_content, full_content_check
 from app.services.summarizer import generate_summary
 
 router = APIRouter(prefix="/api/posts", tags=["帖子"])
@@ -84,7 +86,7 @@ def list_posts(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     """获取帖子列表（未登录也可查看）"""
-    query = db.query(Post).order_by(Post.created_at.desc())
+    query = db.query(Post).filter(Post.is_hidden == False).order_by(Post.created_at.desc())
     if category:
         query = query.filter(Post.category == category)
     total = query.count()
@@ -138,15 +140,34 @@ def list_posts(
 # ── 发布帖子 ─────────────────────────────────────────────
 
 @router.post("", response_model=PostItem, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/hour")
 async def create_post(
-    request: PostCreate,
+    request: Request,
+    body: PostCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """从已保存的对话创建帖子"""
+    check_not_muted(current_user, db)
+    # 内容安全检查
+    err = validate_post_content(body.title, body.summary)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+
+    # 深度安全检查（5层过滤）
+    check_result = await full_content_check(
+        text=body.summary or "",
+        db=db,
+        user_id=current_user.id,
+        content_type="post",
+        title=body.title,
+    )
+    if not check_result["passed"]:
+        raise HTTPException(status_code=422, detail=check_result["reason"])
+
     conversation = (
         db.query(Conversation)
-        .filter(Conversation.id == request.conversation_id)
+        .filter(Conversation.id == body.conversation_id)
         .first()
     )
     if not conversation:
@@ -177,8 +198,8 @@ async def create_post(
     full_content = "\n\n---\n\n".join(parts)
 
     # 生成标题和摘要
-    title = request.title
-    summary = request.summary
+    title = body.title
+    summary = body.summary
     if not title or not summary:
         try:
             ai_result = await generate_summary(
@@ -201,7 +222,7 @@ async def create_post(
         summary=summary,
         full_content=full_content,
         reasoning_content=reasoning_content,
-        category=request.category,
+        category=body.category,
     )
     db.add(post)
     db.commit()
@@ -231,7 +252,7 @@ def get_post(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     """获取帖子详情"""
-    post = db.query(Post).filter(Post.id == post_id).first()
+    post = db.query(Post).filter(Post.id == post_id, Post.is_hidden == False).first()
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
 
@@ -277,7 +298,9 @@ def get_post(
 # ── 切换点赞 ─────────────────────────────────────────────
 
 @router.post("/{post_id}/like", response_model=LikeResponse)
+@limiter.limit("30/hour")
 def toggle_like(
+    request: Request,
     post_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

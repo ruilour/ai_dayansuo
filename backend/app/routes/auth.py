@@ -38,7 +38,7 @@ async def verify_turnstile(token: str) -> bool:
 
 
 @router.post("/register", response_model=TokenResponse)
-@limiter.limit("5/minute")
+@limiter.limit("3/hour")
 async def register(request: Request, body: UserRegister, db: Session = Depends(get_db)):
     # 验证 Turnstile
     if not await verify_turnstile(body.turnstile_token):
@@ -70,11 +70,12 @@ async def register(request: Request, body: UserRegister, db: Session = Depends(g
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("5/minute")
+@limiter.limit("5/15minute")
 async def login(request: Request, body: UserLogin, db: Session = Depends(get_db)):
-    # 验证 Turnstile
-    if not await verify_turnstile(body.turnstile_token):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码验证失败")
+    # 验证 Turnstile（仅当 skip_turnstile 为 False 时）
+    if not body.skip_turnstile:
+        if not await verify_turnstile(body.turnstile_token):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码验证失败")
 
     # 查找用户
     user = db.query(User).filter(User.username == body.username).first()

@@ -234,7 +234,7 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 items-stretch">
+        <div className="grid gap-3 md:grid-cols-3 items-stretch">
           {displayingPosts.map((post) => (
             <div key={post.id} onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer animate-up flex">
               <PostCard post={post} />

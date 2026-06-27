@@ -2,20 +2,26 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { IconFlask, IconLoader } from '../components/Icons'
+import TurnstileWidget from '../components/TurnstileWidget'
 
 export default function Register() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
-  const [turnstileOk, setTurnstileOk] = useState(true)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [turnstileKey, setTurnstileKey] = useState(0)
   const { register, loading, error } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!turnstileOk) return
+    if (!turnstileToken) return
     try {
-      await register(username, password, email, 'dev-skip')
-    } catch { /* error handled in hook */ }
+      await register(username, password, email, turnstileToken)
+    } catch {
+      // 重置 Turnstile：通过 key 变化强制重新挂载组件
+      setTurnstileKey(k => k + 1)
+      setTurnstileToken('')
+    }
   }
 
   return (
@@ -97,21 +103,15 @@ export default function Register() {
             />
           </div>
 
-          {/* Turnstile 占位 */}
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            <input
-              type="checkbox"
-              checked={turnstileOk}
-              onChange={(e) => setTurnstileOk(e.target.checked)}
-              className="rounded"
-              style={{ accentColor: 'var(--color-brand-500)' }}
-            />
-            我不是机器人（开发模式）
-          </label>
+          <TurnstileWidget
+            key={turnstileKey}
+            onVerify={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken('')}
+          />
 
           <button
             type="submit"
-            disabled={loading || !turnstileOk}
+            disabled={loading || !turnstileToken}
             className="btn-primary w-full text-sm"
           >
             {loading ? <IconLoader className="icon" /> : null}

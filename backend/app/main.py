@@ -17,6 +17,8 @@ from app.routes.comments import router as comments_router
 from app.routes.search import router as search_router
 from app.routes.users import router as users_router
 from app.routes.notifications import router as notifications_router
+from app.routes.admin import router as admin_router
+from app.routes.reports import router as reports_router
 from app.utils.logger import logger
 
 
@@ -55,6 +57,8 @@ app.include_router(comments_router)
 app.include_router(search_router)
 app.include_router(users_router)
 app.include_router(notifications_router)
+app.include_router(admin_router)
+app.include_router(reports_router)
 
 
 @app.get("/api/health")

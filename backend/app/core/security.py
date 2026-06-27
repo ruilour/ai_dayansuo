@@ -70,6 +70,7 @@ def get_current_user(
             user.status = "active"
             user.banned_until = None
             user.status_reason = None
+            db.commit()
         else:
             # banned_until 为 null 表示永久封禁
             raise HTTPException(
@@ -92,7 +93,31 @@ def get_current_user_optional(
         user_id = payload.get("sub")
         if user_id is None:
             return None
-        return db.query(User).filter(User.id == int(user_id)).first()
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if user is None:
+            return None
+
+        # 封禁检查（与 get_current_user 逻辑一致）
+        if user.status == "banned":
+            if user.banned_until and user.banned_until > datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"账号已被封禁，原因：{user.status_reason or '无'}，到期时间：{user.banned_until.isoformat()}"
+                )
+            elif user.banned_until and user.banned_until <= datetime.now(timezone.utc):
+                # 封禁已到期，自动恢复
+                user.status = "active"
+                user.banned_until = None
+                user.status_reason = None
+                db.commit()
+            else:
+                # banned_until 为 null 表示永久封禁
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"账号已被永久封禁，原因：{user.status_reason or '无'}"
+                )
+
+        return user
     except HTTPException:
         return None
 
@@ -110,6 +135,7 @@ def check_not_muted(user: User):
             user.status = "active"
             user.muted_until = None
             user.status_reason = None
+            db.commit()
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

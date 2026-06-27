@@ -1,14 +1,19 @@
 import hashlib
+import logging
+
 import httpx
+
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
     """文本嵌入服务
 
     架构：
-      1. 优先调用 Embedding API（OpenAI 兼容，可配置）
-      2. API 不可用时降级为本地哈希向量（开发/测试用）
+      1. 调用外部 Embedding API（OpenAI 兼容，可配置）
+      2. 失败时返回 None，由上游（VectorStore）处理降级
 
     默认 API：SiliconFlow (BAAI/bge-zh-v1.5)，也可通过 settings 切换为任意
     OpenAI 兼容的 Embedding 端点。
@@ -19,7 +24,7 @@ class EmbeddingService:
       DEEPSEEK_EMBEDDING_API_KEY  = ""  # 留空则复用 DEEPSEEK_API_KEY
     """
 
-    VECTOR_DIM = 384  # ChromaDB 默认维度
+    _vector_dim: int | None = None  # 从 API 首次成功调用获取，用于下游校验
     _cache: dict[str, list[float]] = {}  # 内存缓存，key=文本hash
 
     # ------------------------------------------------------------------
@@ -27,24 +32,29 @@ class EmbeddingService:
     # ------------------------------------------------------------------
 
     @classmethod
-    async def embed_text(cls, text: str) -> list[float]:
-        """单文本向量化"""
+    async def embed_text(cls, text: str) -> list[float] | None:
+        """单文本向量化，失败返回 None"""
         text = text.strip()[:3000]
         if not text:
-            return [0.0] * cls.VECTOR_DIM
+            return None
 
         cache_key = hashlib.md5(text.encode()).hexdigest()
         if cache_key in cls._cache:
             return cls._cache[cache_key]
 
-        emb = await cls._try_api(text) or cls._local_embed(text)
+        emb = await cls._try_api(text)
+        if emb is None:
+            return None
+
         cls._cache[cache_key] = emb
         return emb
 
     @classmethod
-    async def embed_batch(cls, texts: list[str], batch_size: int = 10) -> list[list[float]]:
+    async def embed_batch(
+        cls, texts: list[str], batch_size: int = 10
+    ) -> list[list[float] | None]:
         """批量向量化"""
-        results: list[list[float]] = []
+        results: list[list[float] | None] = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
             for t in batch:
@@ -52,7 +62,7 @@ class EmbeddingService:
         return results
 
     # ------------------------------------------------------------------
-    # API 方式
+    # API 调用
     # ------------------------------------------------------------------
 
     @classmethod
@@ -60,7 +70,20 @@ class EmbeddingService:
         """调用外部 Embedding API，失败返回 None"""
         api_key = settings.DEEPSEEK_EMBEDDING_API_KEY or settings.DEEPSEEK_API_KEY
         if not api_key:
+            logger.warning(
+                "No embedding API key configured — set DEEPSEEK_EMBEDDING_API_KEY "
+                "or DEEPSEEK_API_KEY in .env"
+            )
             return None
+
+        # 当使用 DEEPSEEK_API_KEY 但 endpoint 指向非 DeepSeek 服务时发出警告
+        if not settings.DEEPSEEK_EMBEDDING_API_KEY and settings.DEEPSEEK_API_KEY:
+            if "deepseek.com" not in settings.DEEPSEEK_EMBEDDING_BASE_URL.lower():
+                logger.warning(
+                    "Using DEEPSEEK_API_KEY with non-DeepSeek endpoint %s — "
+                    "the key may be rejected",
+                    settings.DEEPSEEK_EMBEDDING_BASE_URL,
+                )
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
@@ -76,44 +99,31 @@ class EmbeddingService:
                     },
                 )
                 if resp.status_code != 200:
+                    logger.warning(
+                        "Embedding API returned status %d: %s",
+                        resp.status_code,
+                        resp.text[:200],
+                    )
                     return None
                 data = resp.json()
-                return data["data"][0]["embedding"]
-        except Exception:
+                emb: list[float] = data["data"][0]["embedding"]
+
+                # 缓存向量维度
+                if cls._vector_dim is None:
+                    cls._vector_dim = len(emb)
+                    logger.info(
+                        "Embedding dimension detected: %d", cls._vector_dim
+                    )
+
+                return emb
+        except httpx.ConnectError:
+            logger.warning("Embedding API unreachable (connection error)")
             return None
-
-    # ------------------------------------------------------------------
-    # 本地哈希向量（开发降级）
-    # ------------------------------------------------------------------
-
-    @classmethod
-    def _local_embed(cls, text: str) -> list[float]:
-        """基于字符 n-gram 的确定性向量（随机傅里叶特征近似）
-
-        每个 n-gram 通过伪随机 LCG 生成一整条向量，所有 n-gram 累加后 L2 归一化。
-        相似文本共享更多 n-gram，因此向量更接近。
-        无需任何外部依赖。
-        """
-        lowered = text.strip().lower()
-        vec = [0.0] * cls.VECTOR_DIM
-
-        # 收集唯一 n-gram
-        ng_set: set[str] = set()
-        for n in (1, 2, 3):
-            for i in range(len(lowered) - n + 1):
-                ng_set.add(lowered[i:i + n])
-
-        if not ng_set:
-            return vec
-
-        for gram in ng_set:
-            # 用 hash 种子初始化 LCG
-            seed = int.from_bytes(hashlib.sha256(gram.encode()).digest()[:8], "big")
-            rng = seed
-            for d in range(cls.VECTOR_DIM):
-                rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
-                vec[d] += (rng / 0x40000000) - 1.0  # [-1, 1]
-
-        # L2 归一化
-        norm = sum(v * v for v in vec) ** 0.5
-        return [v / norm for v in vec] if norm > 0 else vec
+        except httpx.TimeoutException:
+            logger.warning("Embedding API request timed out")
+            return None
+        except Exception:
+            logger.warning(
+                "Unexpected error calling Embedding API", exc_info=True
+            )
+            return None

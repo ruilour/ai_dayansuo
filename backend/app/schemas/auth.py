@@ -11,7 +11,8 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
-    turnstile_token: str
+    turnstile_token: str = ""
+    skip_turnstile: bool = False
 
 
 class TokenRefresh(BaseModel):

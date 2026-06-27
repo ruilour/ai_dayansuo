@@ -2,19 +2,29 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { IconFlask, IconLoader } from '../components/Icons'
+import TurnstileWidget from '../components/TurnstileWidget'
 
 export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [turnstileOk, setTurnstileOk] = useState(true)
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    return parseInt(localStorage.getItem('login_failed_attempts') || '0')
+  })
+  const [turnstileToken, setTurnstileToken] = useState('')
   const { login, loading, error } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!turnstileOk) return
+    if (failedAttempts >= 3 && !turnstileToken) return
     try {
-      await login(username, password, 'dev-skip')
-    } catch { /* error handled in hook */ }
+      await login(username, password, turnstileToken || 'dev-skip', failedAttempts < 3)
+      localStorage.removeItem('login_failed_attempts')
+    } catch {
+      const newCount = failedAttempts + 1
+      setFailedAttempts(newCount)
+      localStorage.setItem('login_failed_attempts', String(newCount))
+      setTurnstileToken('')
+    }
   }
 
   return (
@@ -75,21 +85,16 @@ export default function Login() {
             />
           </div>
 
-          {/* Turnstile 占位 */}
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            <input
-              type="checkbox"
-              checked={turnstileOk}
-              onChange={(e) => setTurnstileOk(e.target.checked)}
-              className="rounded"
-              style={{ accentColor: 'var(--color-brand-500)' }}
+          {failedAttempts >= 3 && (
+            <TurnstileWidget
+              onVerify={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
             />
-            我不是机器人（开发模式）
-          </label>
+          )}
 
           <button
             type="submit"
-            disabled={loading || !turnstileOk}
+            disabled={loading || (failedAttempts >= 3 && !turnstileToken)}
             className="btn-primary w-full text-sm"
           >
             {loading ? <IconLoader className="icon" /> : null}

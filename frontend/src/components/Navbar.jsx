@@ -45,6 +45,12 @@ export default function Navbar() {
                   <IconUser className="icon" />
                   {user.username}
                 </Link>
+                {user?.role === 'admin' || user?.role === 'moderator' ? (
+                  <Link to="/admin" className="inline-flex items-center gap-1.5 text-sm"
+                    style={{ color: 'var(--color-brand-500)' }}>
+                    管理后台
+                  </Link>
+                ) : null}
                 <NotificationBell />
                 <button
                   onClick={logout}

@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     avatar: str | None
+    role: str = "user"
 
     class Config:
         from_attributes = True

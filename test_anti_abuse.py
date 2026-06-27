@@ -1,11 +1,36 @@
-"""防滥用系统集成测试"""
+"""
+防滥用系统集成测试
+
+测试覆盖：
+  1. 健康检查
+  2. 用户注册/登录
+  3. 管理员登录
+  4. 封禁功能 — 封禁后请求返回 403
+  5. 禁言功能 — 禁言后发帖返回 403
+  6. 举报功能 — 提交举报 + 管理员处理
+  7. 管理后台 API — 统计/举报列表/敏感词列表
+"""
+
 import requests, sys
 
 BASE = "http://localhost:8000/api"
 failed = 0
 
+
 def req(method, path, msg="", expect=2, **kw):
-    """expect=2: 期望 2xx, expect=3: 期望 3xx, expect=4: 期望 4xx, expect=403: 期望 403"""
+    """
+    通用 HTTP 请求函数
+
+    Args:
+        method: HTTP 方法
+        path: API 路径（不含 BASE）
+        msg: 测试描述
+        expect: 期望状态码类型 — 2(2xx), 403, 4(4xx)
+        **kw: 传给 requests.request 的其他参数
+
+    Returns:
+        requests.Response 对象
+    """
     global failed
     h = kw.pop("headers", {})
     try:
@@ -33,16 +58,23 @@ def req(method, path, msg="", expect=2, **kw):
         print(f"  [FAIL] {method} {path}  {msg} — {e}")
         return None
 
+
 def login(username, password):
+    """登录并返回 access_token，失败返回空字符串"""
     r = req("POST", "/auth/login", f"登录 {username}",
             json={"username": username, "password": password, "turnstile_token": "bypass"})
     return r.json().get("access_token", "") if r and r.status_code < 400 else ""
 
-# ===== 1. 健康检查 =====
+
+# ============================================================================
+# 1. 健康检查
+# ============================================================================
 print("=== 1. 健康检查 ===")
 req("GET", "/health", "服务健康")
 
-# ===== 2. 登录用户 =====
+# ============================================================================
+# 2. 用户准备 — 注册/登录测试用户
+# ============================================================================
 print("\n=== 2. 用户准备 ===")
 # 尝试注册（接受已存在的 409 错误）
 r = req("POST", "/auth/register", "注册用户(可选)", expect=4,
@@ -55,43 +87,49 @@ else:
     print(f"  用户 Token: {token[:30]}...")
 h = {"Authorization": f"Bearer {token}"}
 
-# ===== 3. 管理员登录 =====
+# ============================================================================
+# 3. 管理员准备 — 登录管理员账号
+# ============================================================================
 print("\n=== 3. 管理员 ===")
-admin_token = login("admin", "admin123")
+admin_token = login("ruilour", "ruilour")
 ha = {"Authorization": f"Bearer {admin_token}"}
 print(f"  管理员登录: {'成功' if admin_token else '失败'}")
 
-# ===== 4. 封禁/禁言 =====
+# ============================================================================
+# 4. 封禁/禁言功能测试
+# ============================================================================
 print("\n=== 4. 封禁/禁言功能 ===")
 if admin_token and token:
     r = req("GET", "/admin/users?search=test_anti_abuse", "查找用户", headers=ha)
     if r and r.status_code < 400:
         users = r.json()
         uid = users[0]["id"]
-        print(f"  目标用户ID: {uid}", )
+        print(f"  目标用户ID: {uid}")
 
-        # 1) 禁言 → 发帖被拒
+        # 4-1: 禁言 → 发帖被拒
         req("PUT", f"/admin/users/{uid}/status", "禁言用户", headers=ha,
             json={"status": "muted", "duration_hours": 1, "reason": "测试禁言"})
         req("POST", "/posts", "禁言后发帖应403", headers=h, expect=403,
             json={"conversation_id": 99999, "title": "测试", "summary": "test"})
 
-        # 2) 解除禁言
+        # 4-2: 解除禁言
         req("PUT", f"/admin/users/{uid}/status", "解除禁言", headers=ha,
             json={"status": "active"})
 
-        # 3) 封禁 → GET /posts 应返回 403
+        # 4-3: 封禁 → GET /posts 应返回 403
         req("PUT", f"/admin/users/{uid}/status", "封禁用户", headers=ha,
             json={"status": "banned", "duration_hours": 1, "reason": "测试封禁"})
         req("GET", "/posts", "封禁后请求应403", headers=h, expect=403)
 
-        # 4) 解除封禁
+        # 4-4: 解除封禁
         req("PUT", f"/admin/users/{uid}/status", "解除封禁", headers=ha,
             json={"status": "active"})
 else:
     print("  跳过 (缺少 token)")
 
-# ===== 5. 举报 =====
+# ============================================================================
+# 5. 举报功能测试
+# ============================================================================
 print("\n=== 5. 举报功能 ===")
 if token:
     r = req("GET", "/posts?limit=1", "获取帖子", headers=h)
@@ -101,26 +139,27 @@ if token:
         if posts:
             pid = posts[0]["id"]
             r = req("POST", "/reports", "提交举报", headers=h, expect=4,
-                    json={"target_type": "post", "target_id": pid, "reason": "spam", "detail": "测试举报"})
-        else:
-            r = None
-    else:
-        r = None
-    # 处理举报结果
-    if r and r.status_code == 201 and admin_token:
-        rid = r.json().get("report_id")
-        if rid:
-            req("POST", f"/admin/reports/{rid}/resolve", "处理举报(忽略)", headers=ha,
-                json={"action": "ignore"})
+                    json={"target_type": "post", "target_id": pid,
+                          "reason": "spam", "detail": "测试举报"})
+            # 处理举报结果（201=成功，409=已举报过）
+            if r and r.status_code == 201 and admin_token:
+                rid = r.json().get("report_id")
+                if rid:
+                    req("POST", f"/admin/reports/{rid}/resolve", "处理举报(忽略)", headers=ha,
+                        json={"action": "ignore"})
 
-# ===== 6. 管理后台 =====
+# ============================================================================
+# 6. 管理后台 API 测试
+# ============================================================================
 print("\n=== 6. 管理后台 ===")
 if admin_token:
     req("GET", "/admin/stats", "统计概览", headers=ha)
     req("GET", "/admin/reports?status=pending", "举报列表", headers=ha)
     req("GET", "/admin/blocked-words", "敏感词列表", headers=ha)
 
-# ===== 结果 =====
+# ============================================================================
+# 测试结果汇总
+# ============================================================================
 print(f"\n{'='*40}")
 print(f"测试完成: 失败 {failed} 项")
 if failed:

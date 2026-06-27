@@ -1,10 +1,10 @@
-"""创建初始管理员账号"""
+"""创建/提升管理员账号"""
 import sys
 import os
 
 backend_dir = os.path.join(os.path.dirname(__file__), '..', 'backend')
 sys.path.insert(0, backend_dir)
-os.chdir(backend_dir)  # 确保 pydantic-settings 能找到 .env 文件
+os.chdir(backend_dir)
 
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
@@ -16,11 +16,10 @@ def create_admin(username: str, password: str):
     try:
         existing = db.query(User).filter(User.username == username).first()
         if existing:
-            print(f"用户 '{username}' 已存在，跳过创建")
-            if existing.role != "admin":
-                existing.role = "admin"
-                db.commit()
-                print(f"已将 '{username}' 提升为管理员")
+            existing.role = "admin"
+            existing.password_hash = get_password_hash(password)
+            db.commit()
+            print(f"用户 '{username}' 已提升为管理员，密码已更新")
             return
 
         user = User(

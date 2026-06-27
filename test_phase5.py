@@ -1,13 +1,26 @@
 """
-Phase 5 端到端测试脚本
-测试：分类、收藏、个人主页、通知
+Phase 5 端到端集成测试
+
+测试场景：两个用户（test_a_phase5 / test_b_phase5）的交互流程
+测试覆盖：
+  1. 用户注册/登录
+  2. 分类 API — 返回 6 个分类 + 计数
+  3. 创建对话 → 保存 → 发帖（带分类）
+  4. 分类计数验证
+  5. 收藏 — toggle 开关（收藏/取消/再收藏）
+  6. 收藏列表
+  7. 个人主页 — 用户信息/统计/帖子含 is_bookmarked
+  8. 通知系统 — 评论触发通知 → 未读数 → 全部已读
 """
+
 import requests, json, time
 
 BASE = "http://localhost:8000/api"
 headers = {}
 
+
 def req(method, path, **kwargs):
+    """通用 HTTP 请求函数，自动打印状态和错误信息"""
     url = f"{BASE}{path}"
     h = {**headers, **kwargs.pop("headers", {})}
     r = requests.request(method, url, headers=h, **kwargs)
@@ -17,9 +30,10 @@ def req(method, path, **kwargs):
         print(f"    ERROR: {err}")
     return r
 
-# ============================================================
-# 1. 注册/登录两个测试用户
-# ============================================================
+
+# ============================================================================
+# 1. 用户准备 — 注册/登录两个测试用户
+# ============================================================================
 print("\n=== 1. 准备用户 ===")
 r = req("POST", "/auth/register", json={"username": "test_a_phase5", "password": "Test1234!", "turnstile_token": ""})
 if r.status_code == 409:
@@ -38,9 +52,9 @@ if r.status_code == 409:
 token_b = r.json().get("access_token")
 print(f"    token_b: {token_b[:20] if token_b else 'N/A'}...")
 
-# ============================================================
-# 2. 测试分类
-# ============================================================
+# ============================================================================
+# 2. 分类 API — 验证返回 6 个分类
+# ============================================================================
 print("\n=== 2. 分类 API ===")
 r = req("GET", "/categories")
 cats = r.json().get("categories", [])
@@ -51,13 +65,13 @@ for c in cats:
     print(f"      {nm}: {cnt} 篇")
 assert len(cats) == 6, f"应有6个分类，实际 {len(cats)}"
 
-# ============================================================
-# 3. 创建对话 + 保存 + 发帖（带分类）
-# ============================================================
+# ============================================================================
+# 3. user_a 创建对话 → 保存 → 发帖（带分类）
+# ============================================================================
 print("\n=== 3. 创建对话 + 保存 + 发帖 ===")
 headers = {"Authorization": f"Bearer {token_a}"}
 
-# 帖子1：技术类
+# 3-1: 技术类帖子
 r = req("POST", "/conversations", headers=headers, json={"title": "Python异步编程"})
 conv_id = r.json().get("id")
 print(f"    对话1 ID: {conv_id}")
@@ -75,7 +89,7 @@ assert r.status_code == 200 or r.status_code == 201, f"发帖失败: {r.text[:20
 post_id = r.json().get("id")
 print(f"    [OK] 帖子1 ID: {post_id}, category={r.json().get('category')}")
 
-# 帖子2：科学类
+# 3-2: 科学类帖子
 r = req("POST", "/conversations", headers=headers, json={"title": "黑洞研究"})
 conv2_id = r.json().get("id")
 r = req("POST", f"/conversations/{conv2_id}/save", headers=headers)
@@ -88,9 +102,9 @@ r = req("POST", "/posts", headers=headers, json={
 post2_id = r.json().get("id")
 print(f"    [OK] 帖子2 ID: {post2_id}, category={r.json().get('category')}")
 
-# ============================================================
-# 4. 验证分类计数
-# ============================================================
+# ============================================================================
+# 4. 验证分类计数 — 技术/科学应 >= 1
+# ============================================================================
 print("\n=== 4. 分类计数 ===")
 r = req("GET", "/categories")
 cats = r.json().get("categories", [])
@@ -101,32 +115,32 @@ assert tech_count >= 1, f"技术类计数错误: {tech_count}"
 assert sci_count >= 1, f"科学类计数错误: {sci_count}"
 print("    [OK] 分类计数正确")
 
-# ============================================================
-# 5. 收藏测试
-# ============================================================
+# ============================================================================
+# 5. 收藏功能 — toggle 开关测试
+# ============================================================================
 print("\n=== 5. 收藏功能 ===")
 headers_b = {"Authorization": f"Bearer {token_b}"}
 
-# 收藏
+# 5-1: 收藏
 r = req("POST", f"/posts/{post_id}/bookmark", headers=headers_b)
 data = r.json()
 print(f"    收藏: bookmarked={data.get('bookmarked')}, count={data.get('bookmarks_count')}")
 assert data.get("bookmarked") == True, "收藏应返回 bookmarked=true"
 
-# 取消收藏
+# 5-2: 取消收藏
 r = req("POST", f"/posts/{post_id}/bookmark", headers=headers_b)
 data = r.json()
 print(f"    取消: bookmarked={data.get('bookmarked')}, count={data.get('bookmarks_count')}")
 assert data.get("bookmarked") == False, "取消收藏应返回 bookmarked=false"
 
-# 再收藏
+# 5-3: 再收藏
 r = req("POST", f"/posts/{post_id}/bookmark", headers=headers_b)
 assert r.json().get("bookmarked") == True
 print("    [OK] 收藏 toggle 正常")
 
-# ============================================================
+# ============================================================================
 # 6. 收藏列表
-# ============================================================
+# ============================================================================
 print("\n=== 6. 收藏列表 ===")
 r = req("GET", "/bookmarks", headers=headers_b)
 data = r.json()
@@ -136,21 +150,25 @@ print(f"    收藏总数: {total}")
 assert total >= 1, f"收藏列表不应为空 (total={total})"
 print("    [OK] 收藏列表正常")
 
-# ============================================================
-# 7. 个人主页
-# ============================================================
+# ============================================================================
+# 7. 个人主页 — 用户信息/统计/帖子列表/标记状态
+# ============================================================================
 print("\n=== 7. 个人主页 ===")
 uid = user_a_id
 print(f"    user_a id = {uid}")
+
+# 7-1: 用户信息
 r = req("GET", f"/users/{uid}")
 user_data = r.json()
 print(f"    用户: {user_data.get('username')}, 加入于 {user_data.get('created_at','?')[:10]}")
 assert user_data.get("username") is not None
 
+# 7-2: 用户统计
 r = req("GET", f"/users/{uid}/stats")
 stats = r.json()
 print(f"    统计: 帖子={stats.get('posts_count')}, 获赞={stats.get('total_likes')}, 评论={stats.get('comments_count')}")
 
+# 7-3: 帖子列表（含 is_bookmarked）
 r = req("GET", f"/users/{uid}/posts?page=1&page_size=5")
 posts_data = r.json()
 post_items = posts_data.get("items", [])
@@ -162,19 +180,19 @@ if post_items:
     print(f"    is_bookmarked={has_bookmark}, bookmarks_count={first.get('bookmarks_count')}")
 print("    [OK] 个人主页正常")
 
-# ============================================================
-# 8. 通知系统
-# ============================================================
+# ============================================================================
+# 8. 通知系统 — 评论触发通知 + 未读数 + 全部已读
+# ============================================================================
 print("\n=== 8. 通知系统 ===")
 
-# user_b 评论 user_a 的帖子
+# 8-1: user_b 评论 user_a 的帖子
 r = req("POST", f"/posts/{post_id}/comments", headers=headers_b, json={"content": "好文章！学习了"})
 cmt_data = r.json()
 cmt_id = cmt_data.get("id")
 print(f"    user_b 发表评论: id={cmt_id}")
 assert cmt_id is not None, "评论创建失败"
 
-# user_a 查看通知（应该收到 comment 通知）
+# 8-2: user_a 查看通知（应收到 comment 通知）
 r = req("GET", "/notifications?page=1&page_size=10", headers=headers)
 notif_data = r.json()
 notif_items = notif_data.get("items", [])
@@ -185,27 +203,27 @@ for n in notif_items:
           f"{'[unread]' if not n.get('is_read') else '[read]'}")
 assert notif_total >= 1, "应至少有一条通知"
 
-# 检查未读数
+# 8-3: 未读数检查
 r = req("GET", "/notifications/unread-count", headers=headers)
 uc = r.json().get("count", 0)
 print(f"    未读数: {uc}")
 assert uc >= 1, f"未读数应为 >= 1 (got {uc})"
 
-# 全部已读
+# 8-4: 全部已读
 r = req("POST", "/notifications/read-all", headers=headers)
 print(f"    全部已读: HTTP {r.status_code}")
 assert r.status_code == 200
 
-# 验证已读
+# 8-5: 验证已读
 r = req("GET", "/notifications/unread-count", headers=headers)
 uc_after = r.json().get("count", -1)
 print(f"    读后未读数: {uc_after}")
 assert uc_after == 0, f"读后未读数应为0 (got {uc_after})"
 print("    [OK] 通知系统正常")
 
-# ============================================================
-# [OK] 完成
-# ============================================================
+# ============================================================================
+# 测试结果汇总
+# ============================================================================
 print("\n" + "="*50)
 print("  [OK] 所有 Phase 5 功能测试通过！")
 print("="*50)

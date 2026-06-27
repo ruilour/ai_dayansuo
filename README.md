@@ -1,4 +1,4 @@
-<img width="1550" height="1167" alt="image" src="https://github.com/user-attachments/assets/a74754ac-8792-4c6b-a7ff-78bdefc6369e" /># AI答研所
+# AI答研所
 
 > AI 给出答案，人来判断对错 — AI 回答的探讨与验证社区
 

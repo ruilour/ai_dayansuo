@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.conversation import Conversation
+from app.models.message import Message
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationResponse,
@@ -133,6 +134,21 @@ def save_conversation(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该对话已有保存记录，是否更新？")
 
     from datetime import datetime, timezone
+
+    # 自动生成标题：取第一条用户消息截断
+    if not conversation.title or conversation.title == "新对话":
+        first_msg = (
+            db.query(Message)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Message.role == "user",
+            )
+            .order_by(Message.created_at.asc())
+            .first()
+        )
+        if first_msg:
+            conversation.title = (first_msg.content[:50] + "…") if len(first_msg.content) > 50 else first_msg.content
+
     conversation.is_saved = True
     conversation.saved_at = datetime.now(timezone.utc)
     db.commit()

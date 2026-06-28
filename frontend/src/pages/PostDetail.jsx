@@ -50,6 +50,7 @@ export default function PostDetail() {
   const [bookmarking, setBookmarking] = useState(false)
   const [reporting, setReporting] = useState(false)
   const [feedback, setFeedback] = useState('') // toast 反馈
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchPost()
@@ -140,6 +141,20 @@ export default function PostDetail() {
   const showFeedback = (msg) => {
     setFeedback(msg)
     setTimeout(() => setFeedback(''), 2000)
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('确定删除这篇帖子？删除后不可恢复。')) return
+    setDeleting(true)
+    try {
+      await api.delete(`/posts/${id}`)
+      showFeedback('已删除')
+      setTimeout(() => navigate('/'), 1500)
+    } catch (err) {
+      alert(err.response?.data?.detail || '删除失败')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // 加载中
@@ -275,6 +290,19 @@ export default function PostDetail() {
             style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-surface-border)' }}
           >
             举报
+          </button>
+        )}
+      </div>
+
+        {/* 作者操作 */}
+        {user && user.id === post.user_id && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-150"
+            style={{ color: '#ef4444', border: '1px solid #fca5a5' }}
+          >
+            {deleting ? '删除中...' : '删除'}
           </button>
         )}
       </div>

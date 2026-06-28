@@ -22,6 +22,7 @@
 | 🔔 **通知** | ✅ | 评论/回复/点赞/收藏/系统处罚通知，已读未读 |
 | 🛡️ **防滥用** | ✅ | 5 层内容过滤 + 举报 + 封禁/禁言 |
 | 🔐 **管理员后台** | ✅ | 统计面板、举报处理、用户管理、敏感词管理 |
+| 🔍 **RAG 知识库** | ✅ | ChromaDB 向量检索，AI 回答引用社区帖子 |
 | 📱 **响应式** | ✅ | Tailwind 适配桌面和移动端 |
 
 ---
@@ -32,7 +33,8 @@
 |------|------|
 | 后端 | FastAPI + SQLAlchemy + MySQL |
 | 认证 | JWT + bcrypt（无状态） |
-| AI | DeepSeek API（流式 SSE） |
+| AI | DeepSeek API（流式 SSE）+ Embedding API |
+| 向量库 | ChromaDB（余弦相似度检索，距离阈值 0.6） |
 | 前端 | React + Vite + Tailwind CSS |
 | 状态 | Zustand |
 | 请求 | React Query |
@@ -51,6 +53,9 @@
 DATABASE_URL=mysql+pymysql://root:password@localhost:3306/ai_dayansuo
 SECRET_KEY=your-secret-key
 DEEPSEEK_API_KEY=your-deepseek-key
+DEEPSEEK_EMBEDDING_API_KEY=your-embedding-key    # 向量化（可用硅基流动等）
+DEEPSEEK_EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1/embeddings
+DEEPSEEK_EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
 TURNSTILE_SITE_KEY=your-turnstile-site-key
 TURNSTILE_SECRET_KEY=your-turnstile-secret-key
 ```
@@ -62,6 +67,12 @@ cd backend
 pip install -r requirements.txt
 python scripts/create_admin.py <用户名> <密码>   # 创建管理员
 python -m uvicorn app.main:app --reload --port 8000
+```
+
+### 向量索引（首次 / 帖子变更后）
+
+```bash
+python scripts/reindex_posts.py
 ```
 
 ### 前端
@@ -81,7 +92,7 @@ npm run dev
 
 ## 数据库
 
-10 张表，详见 [docs/database-schema.md](docs/database-schema.md)。
+10 张表（MySQL），详见 [docs/database-schema.md](docs/database-schema.md)。
 
 | 表 | 说明 |
 |-----|------|
@@ -92,9 +103,11 @@ npm run dev
 | `comments` | 评论 + 回复 |
 | `post_likes` | 点赞 |
 | `post_bookmarks` | 收藏 |
-| `notifications` | 通知 |
+| `notifications` | 通知（含系统处罚通知） |
 | `reports` | 举报 |
 | `blocked_words` | 敏感词库 |
+
+**向量数据库：** ChromaDB（`backend/chroma_db/`），存储帖子向量用于 RAG 检索
 
 ---
 
@@ -108,12 +121,15 @@ POST /api/auth/login         # 登录（失败 3 次后需 Turnstile）
 
 ### 对话
 ```
-GET    /api/conversations           # 对话列表
-POST   /api/conversations           # 新建对话
-DELETE /api/conversations/{id}      # 删除对话
-GET    /api/conversations/{id}/messages   # 消息列表
-POST   /api/conversations/{id}/messages   # 发送消息（SSE 流式）
+GET    /api/conversations                    # 对话列表
+POST   /api/conversations                    # 新建对话
+DELETE /api/conversations/{id}               # 删除对话
+GET    /api/conversations/{id}/messages      # 消息列表
+POST   /api/conversations/{id}/messages      # 发送消息（SSE 流式，含 RAG 引用）
+POST   /api/conversations/{id}/save          # 保存对话
 ```
+
+> SSE 流式事件：`reasoning`（思考过程）→ `content`（回答）→ `citations`（引用来源）→ `done`（结束）
 
 ### 帖子
 ```
@@ -164,7 +180,7 @@ POST   /api/reports                 # 提交举报
 ```
 GET    /api/admin/stats             # 统计概览
 GET    /api/admin/users             # 用户列表
-PUT    /api/admin/users/{id}/status # 封禁/禁言/解封
+PUT    /api/admin/users/{id}/status # 封禁/禁言/解封（发送系统通知）
 GET    /api/admin/reports           # 举报列表
 POST   /api/admin/reports/{id}/resolve  # 处理举报
 GET    /api/admin/blocked-words     # 敏感词列表
@@ -177,6 +193,23 @@ DELETE /api/admin/blocked-words/{id}# 删除敏感词
 GET    /api/health                  # 健康检查
 GET    /api/search?q=keyword        # 搜索帖子
 ```
+
+---
+
+## RAG 知识库系统
+
+AI 对话时自动检索社区相关帖子，增强回答准确性并标注来源。
+
+| 组件 | 说明 |
+|------|------|
+| Embedding 服务 | DeepSeek Embedding API（或兼容接口）转文本为向量 |
+| ChromaDB | 本地持久化向量数据库，余弦距离检索 |
+| 相关性阈值 | 余弦距离 < 0.6 视为相关，不相关结果自动过滤 |
+| 引用展示 | 回答末尾显示可点击的引用标签，跳转原帖 |
+
+**流程：** 用户提问 → 向量化 → ChromaDB 检索相关帖子 → 注入 AI 上下文 → AI 参考回答 + 标注来源
+
+**重建索引：** `python scripts/reindex_posts.py`（新建帖子自动索引，存量帖子手动重建）
 
 ---
 
@@ -216,23 +249,29 @@ ai_dayansuo/
 │   │   ├── schemas/                # Pydantic 校验
 │   │   ├── routes/                 # API 路由
 │   │   ├── services/
-│   │   │   ├── ai_service.py       # DeepSeek 流式调用
+│   │   │   ├── ai_service.py       # DeepSeek 流式 + RAG 注入
 │   │   │   ├── content_safety.py   # 5 层内容过滤
+│   │   │   ├── embedding_service.py# Embedding 向量化
+│   │   │   ├── vector_store.py     # ChromaDB 封装（余弦阈值）
+│   │   │   ├── conversation_service.py
 │   │   │   └── summarizer.py       # AI 摘要生成
 │   │   └── utils/
+│   │       └── logger.py
+│   ├── chroma_db/                  # 向量索引（gitignored）
 │   ├── requirements.txt
 │   └── .env
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/                  # 12 个页面
-│   │   ├── components/             # 20+ 组件
+│   │   ├── pages/                  # 13 个页面
+│   │   ├── components/             # 25+ 组件
 │   │   ├── hooks/
 │   │   ├── store/
 │   │   └── api/
 │   ├── package.json
 │   └── vite.config.js
 ├── scripts/
-│   └── create_admin.py             # 管理员创建脚本
+│   ├── create_admin.py             # 管理员创建
+│   └── reindex_posts.py            # 重建向量索引
 ├── docs/
 │   ├── database-schema.md
 │   └── superpowers/

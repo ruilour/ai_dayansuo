@@ -292,8 +292,6 @@ export default function PostDetail() {
             举报
           </button>
         )}
-      </div>
-
         {/* 作者操作 */}
         {user && user.id === post.user_id && (
           <button

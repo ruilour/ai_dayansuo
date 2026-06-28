@@ -131,3 +131,70 @@ MySQL 存业务数据（用户/对话/帖子/评论/通知等 10 表），Chroma
 ## 附：简历一句话版本
 
 > **AI 答案探讨社区 — 用户与 AI 对话后将优质回答发布为帖子供社区讨论验证。包含 RAG 知识库（ChromaDB + Embedding）、JWT 双 token 认证、RBAC 权限、5 层内容安全过滤、举报自动隐藏、SSE 流式对话等完整功能。**
+
+
+
+---
+
+## 附：技术栈速查表（简历版）
+
+### 后端核心
+
+| 技术 | 用途 | 简历写法 |
+|------|------|----------|
+| FastAPI | 异步 REST API | FastAPI (Python async web framework) |
+| SQLAlchemy 2.0 | ORM | SQLAlchemy ORM with MySQL |
+| MySQL | 关系数据库 | MySQL database design (10 tables) |
+| Pydantic v2 | 数据校验 | Pydantic data validation & serialization |
+| python-jose | JWT | JWT-based stateless authentication |
+| passlib/bcrypt | 密码加密 | bcrypt password hashing |
+| httpx | HTTP 客户端 | Async HTTP client (external API calls) |
+| slowapi | 限流 | Rate limiting & abuse prevention |
+| python-multipart | 表单解析 | File upload & form data handling |
+
+### AI / 向量检索 ⭐
+
+| 技术 | 用途 | 简历写法 |
+|------|------|----------|
+| RAG (Retrieval-Augmented Generation) | 知识库增强问答 | RAG architecture — retrieval-augmented LLM Q&A |
+| ChromaDB | 向量数据库 | ChromaDB vector database (cosine similarity search) |
+| Embedding API (BAAI/bge-large-zh) | 文本向量化 | Text embedding & semantic search |
+| DeepSeek API | LLM 对话 | LLM integration with streaming SSE |
+| Cosine Similarity | 语义匹配 | Cosine distance threshold-based relevance filtering |
+| Streaming SSE | 流式响应 | Server-Sent Events for real-time AI response |
+| AI Content Moderation | 内容审核 | LLM-powered content safety moderation |
+
+### 前端
+
+| 技术 | 用途 | 简历写法 |
+|------|------|----------|
+| React 19 | UI 框架 | React 19 with hooks & functional components |
+| Vite 8 | 构建工具 | Vite build tool & dev server |
+| Tailwind CSS 3 | 样式 | Tailwind CSS utility-first styling |
+| Zustand | 状态管理 | Zustand lightweight state management |
+| TanStack React Query v5 | 请求管理 | TanStack Query (React Query) — server state management |
+| React Router v7 | 路由 | React Router for SPA routing |
+| Axios | HTTP 客户端 | Axios HTTP interceptor (auto token refresh) |
+| React Markdown | Markdown 渲染 | React Markdown with GFM & sanitization |
+
+### 架构 / 设计模式
+
+| 技术 | 简历写法 |
+|------|----------|
+| RESTful API design | RESTful API with role-based access control |
+| JWT stateless auth (access + refresh) | JWT dual-token auth with auto-refresh interceptor |
+| Role-based access control (user/moderator/admin) | RBAC (user/moderator/admin) |
+| Service layer + Repository pattern | Layered architecture (routes → services → models) |
+| Singleton pattern (VectorStore) | Singleton pattern for shared resources |
+| 5-layer content safety pipeline | Multi-layer content filtering pipeline |
+| Automated mute/ban with expiration | Automated moderation with time-based recovery |
+| Docker-ready deployment | Docker/container-ready deployment |
+
+### 安全 / 防滥用
+
+| 技术 | 用途 | 简历写法 |
+|------|------|----------|
+| Cloudflare Turnstile | CAPTCHA | Cloudflare Turnstile CAPTCHA integration |
+| Slowapi rate limiting | 限流 | Rate limiting (5/15min login, 3/h register) |
+| Content safety filtering | 内容过滤 | Content safety — profanity filter, HTML sanitization, duplicate detection, AI review |
+| Report + 3-vote auto-hide | 举报机制 | Community reporting with auto-moderation threshold |

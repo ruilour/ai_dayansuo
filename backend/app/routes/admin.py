@@ -216,10 +216,12 @@ def update_user_status(
         target.status = "muted"
         target.status_reason = body.reason or "违规发言"
         target.muted_until = datetime.now(timezone.utc) + timedelta(hours=body.duration_hours) if body.duration_hours else None
+        create_notification(db, target.id, current_user.id, "system_mute")
     elif body.status == "banned":
         target.status = "banned"
         target.status_reason = body.reason or "严重违规"
         target.banned_until = datetime.now(timezone.utc) + timedelta(hours=body.duration_hours) if body.duration_hours else None
+        create_notification(db, target.id, current_user.id, "system_ban")
 
     db.commit()
     return {"status": target.status}

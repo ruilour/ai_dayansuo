@@ -138,6 +138,13 @@ def resolve_report(
         post = db.query(Post).filter(Post.id == report.target_id).first()
         if post:
             db.delete(post)
+            # 同步删除向量索引
+            try:
+                from app.services.vector_store import VectorStore
+                store = VectorStore()
+                store.delete_post(report.target_id)
+            except Exception:
+                pass
     elif body.action == "delete" and report.target_type == "comment":
         comment = db.query(Comment).filter(Comment.id == report.target_id).first()
         if comment:
@@ -209,10 +216,12 @@ def update_user_status(
         target.status = "muted"
         target.status_reason = body.reason or "违规发言"
         target.muted_until = datetime.now(timezone.utc) + timedelta(hours=body.duration_hours) if body.duration_hours else None
+        create_notification(db, target.id, current_user.id, "system_mute")
     elif body.status == "banned":
         target.status = "banned"
         target.status_reason = body.reason or "严重违规"
         target.banned_until = datetime.now(timezone.utc) + timedelta(hours=body.duration_hours) if body.duration_hours else None
+        create_notification(db, target.id, current_user.id, "system_ban")
 
     db.commit()
     return {"status": target.status}

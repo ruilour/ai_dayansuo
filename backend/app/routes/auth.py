@@ -65,7 +65,7 @@ async def register(request: Request, body: UserRegister, db: Session = Depends(g
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar),
+        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar, role=user.role),
     )
 
 
@@ -89,7 +89,7 @@ async def login(request: Request, body: UserLogin, db: Session = Depends(get_db)
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar),
+        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar, role=user.role),
     )
 
 
@@ -110,5 +110,5 @@ async def refresh(request: Request, body: TokenRefresh, db: Session = Depends(ge
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar),
+        user=UserResponse(id=user.id, username=user.username, avatar=user.avatar, role=user.role),
     )

@@ -38,8 +38,8 @@ export default function CommentList({ postId, onCommentChange }) {
       const { data } = await api.get(`/posts/${postId}/comments`)
       setComments(data.comments || [])
       setTotal(data.total || 0)
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('获取评论失败:', e)
     } finally {
       setLoading(false)
     }

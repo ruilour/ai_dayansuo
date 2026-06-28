@@ -50,6 +50,7 @@ export default function PostDetail() {
   const [bookmarking, setBookmarking] = useState(false)
   const [reporting, setReporting] = useState(false)
   const [feedback, setFeedback] = useState('') // toast 反馈
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchPost()
@@ -84,8 +85,8 @@ export default function PostDetail() {
         likes_count: data.likes_count,
       }))
       showFeedback(data.liked ? '已点赞' : '已取消点赞')
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('操作失败:', e)
     } finally {
       setLiking(false)
     }
@@ -106,8 +107,8 @@ export default function PostDetail() {
         bookmarks_count: data.bookmarks_count,
       }))
       showFeedback(data.bookmarked ? '已收藏' : '已取消收藏')
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('操作失败:', e)
     } finally {
       setBookmarking(false)
     }
@@ -140,6 +141,20 @@ export default function PostDetail() {
   const showFeedback = (msg) => {
     setFeedback(msg)
     setTimeout(() => setFeedback(''), 2000)
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('确定删除这篇帖子？删除后不可恢复。')) return
+    setDeleting(true)
+    try {
+      await api.delete(`/posts/${id}`)
+      showFeedback('已删除')
+      setTimeout(() => navigate('/'), 1500)
+    } catch (err) {
+      alert(err.response?.data?.detail || '删除失败')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // 加载中
@@ -277,6 +292,17 @@ export default function PostDetail() {
             举报
           </button>
         )}
+        {/* 作者操作 */}
+        {user && user.id === post.user_id && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-150"
+            style={{ color: '#ef4444', border: '1px solid #fca5a5' }}
+          >
+            {deleting ? '删除中...' : '删除'}
+          </button>
+        )}
       </div>
 
       {/* 操作反馈 toast */}
@@ -294,7 +320,7 @@ export default function PostDetail() {
           // 刷新评论计数
           api.get(`/posts/${post.id}`).then(({ data }) => {
             setPost((prev) => ({ ...prev, comments_count: data.comments_count }))
-          }).catch(() => {})
+          }).catch((e) => console.error('刷新评论计数失败:', e))
         }}
       />
     </div>

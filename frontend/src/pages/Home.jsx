@@ -38,8 +38,8 @@ export default function Home() {
       })
       setHasMore(data.has_more)
       setPage((p) => p + 1)
-    } catch {
-      // ignore
+    } catch (e) {
+      if (e.response?.status !== 404) console.error('获取帖子失败:', e)
     } finally {
       setLoading(false)
       setInitialLoading(false)
@@ -109,8 +109,8 @@ export default function Home() {
     try {
       const { data } = await api.get(`/search?q=${encodeURIComponent(q)}&page=1&page_size=20`)
       setSearchResults(data.items || [])
-    } catch {
-      // ignore
+    } catch (e) {
+      if (e.response?.status !== 404) console.error('获取帖子失败:', e)
     } finally {
       setSearching(false)
     }

@@ -26,7 +26,7 @@ export default function NotificationBell() {
     try {
       const { data } = await api.get('/notifications/unread-count')
       setUnreadCount(data.count)
-    } catch { /* ignore */ }
+    } catch (e) { console.error('通知操作失败:', e) }
   }, [])
 
   // Poll every 15s
@@ -62,7 +62,7 @@ export default function NotificationBell() {
       try {
         const { data } = await api.get('/notifications?page=1&page_size=10')
         setNotifications(data.items || [])
-      } catch { /* ignore */ }
+      } catch (e) { console.error('通知操作失败:', e) }
     }
     setOpen(!open)
   }
@@ -72,12 +72,12 @@ export default function NotificationBell() {
       await api.post('/notifications/read-all')
       setUnreadCount(0)
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
-    } catch { /* ignore */ }
+    } catch (e) { console.error('通知操作失败:', e) }
   }
 
   const handleClick = (n) => {
     setOpen(false)
-    navigate(`/post/${n.post_id}`)
+    if (n.post_id) navigate(`/post/${n.post_id}`)
   }
 
   const iconMap = {
@@ -133,6 +133,8 @@ export default function NotificationBell() {
                         {n.type === 'reply' && ' 回复了你的评论'}
                         {n.type === 'like' && ' 赞了你的帖子'}
                         {n.type === 'bookmark' && ' 收藏了你的帖子'}
+                        {n.type === 'system_mute' && ' 你已被管理员禁言'}
+                        {n.type === 'system_ban' && ' 你已被管理员封号'}
                       </p>
                       {n.post_title && (
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-placeholder)' }}>「{n.post_title}」</p>

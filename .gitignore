@@ -24,5 +24,17 @@ Thumbs.db
 uploads/*
 !uploads/.gitkeep
 
+# ChromaDB 向量数据库持久化目录
+chroma_db/
+
+# Debug images
+image*.png
+
+# Superpowers internal docs
+docs/superpowers/
+
+# Interview prep docs (not for public repo)
+docs/tech-stack-resume.md
+
 # Django
 *.log

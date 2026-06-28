@@ -1,3 +1,4 @@
+import html
 import json
 
 import httpx
@@ -7,15 +8,71 @@ from app.core.config import settings
 from app.models.message import Message
 
 
+async def _should_trigger_rag(messages: list[dict], cache_bucket: dict | None = None) -> bool:
+    """判断是否触发 RAG 检索"""
+    if not messages:
+        return False
+    last_msg = messages[-1].get("content", "")
+    # 长度 < 5 的简短回复跳过
+    if len(last_msg.strip()) < 5:
+        return False
+    # 语气词跳过
+    filler = {"好", "嗯", "哦", "行", "OK", "ok", "谢谢", "好的", "继续", "然后", "是的", "对"}
+    words = set(last_msg.strip().lower().split())
+    if words.issubset(filler):
+        return False
+    # 首条消息始终触发
+    if len(messages) <= 1:
+        return True
+    # 连续 5 条内已检索过则跳过（同对话缓存）
+    if cache_bucket and cache_bucket.get("last_rag_turn", -1) >= len(messages) - 5:
+        return False
+    return True
+
+
 async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
     """调用 DeepSeek API 流式返回，同时保存消息到数据库"""
+
+    # ── RAG 检索 ──
+    rag_context = []
+    if await _should_trigger_rag(messages):
+        try:
+            from app.services.vector_store import rag_search
+            last_msg = messages[-1].get("content", "")
+            rag_context = await rag_search(last_msg, top_k=5)
+        except Exception:
+            rag_context = []
+
+    # 构建 system prompt
+    system_content = "你是「AI答研所」的 AI 助手（网站作者：ruilour），不是 DeepSeek 也不是深度求索。你的任务是帮助用户解答问题。不要带有不专业的回复，请用中文回答。每次回复不要超过500字，适当引导用户追问下一步操作。自我介绍时只说你是「AI答研所」的 AI 助手，不要说你是 DeepSeek。"
+    if rag_context:
+        context_xml_parts = ['<context>']
+        for src in rag_context:
+            context_xml_parts.append(
+                f'  <source post_id="{src["post_id"]}" '
+                f'username="{html.escape(src.get("username", ""), quote=True)}" '
+                f'title="{html.escape(src.get("title", ""), quote=True)}">'
+                f'\n    {html.escape(src.get("summary", "")[:500])}'
+                f'\n  </source>'
+            )
+        context_xml_parts.append('</context>')
+        system_content += (
+            "\n\n以下是社区中与用户问题相关的帖子（<context>），请优先参考这些内容回答。"
+            "引用时请在回答末尾标注来源，格式为：\n"
+            "> 📚 参考：[帖子标题] · 作者\n"
+        )
+        system_content += "\n" + "\n".join(context_xml_parts)
+
+    # 构建带 system 的消息列表
+    rag_messages = [{"role": "system", "content": system_content}] + messages
+
     headers = {
         "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
         "Content-Type": "application/json",
     }
     payload = {
         "model": settings.DEEPSEEK_MODEL,
-        "messages": messages,
+        "messages": rag_messages,
         "stream": True,
     }
 
@@ -53,6 +110,17 @@ async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
                         yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
                 except json.JSONDecodeError:
                     continue
+
+    # 如果有 RAG 引用，在最后加 citation 事件
+    if rag_context:
+        citations = []
+        for src in rag_context:
+            citations.append({
+                "post_id": src["post_id"],
+                "title": src["title"],
+                "username": src["username"],
+            })
+        yield f"data: {json.dumps({'type': 'citations', 'content': citations})}\n\n"
 
     # 流结束，保存到数据库
     user_msg = messages[-1]

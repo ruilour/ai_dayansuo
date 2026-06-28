@@ -53,6 +53,7 @@ class PostListResponse(BaseModel):
 
 class PostDetail(BaseModel):
     id: int
+    user_id: int
     title: str
     summary: str
     category: str
@@ -149,21 +150,6 @@ async def create_post(
 ):
     """从已保存的对话创建帖子"""
     check_not_muted(current_user, db)
-    # 内容安全检查
-    err = validate_post_content(body.title, body.summary)
-    if err:
-        raise HTTPException(status_code=422, detail=err)
-
-    # 深度安全检查（5层过滤）
-    check_result = await full_content_check(
-        text=body.summary or "",
-        db=db,
-        user_id=current_user.id,
-        content_type="post",
-        title=body.title,
-    )
-    if not check_result["passed"]:
-        raise HTTPException(status_code=422, detail=check_result["reason"])
 
     conversation = (
         db.query(Conversation)
@@ -197,7 +183,7 @@ async def create_post(
             reasoning_content = m.reasoning_content
     full_content = "\n\n---\n\n".join(parts)
 
-    # 生成标题和摘要
+    # 生成标题和摘要（先 AI 生成，再校验）
     title = body.title
     summary = body.summary
     if not title or not summary:
@@ -215,6 +201,21 @@ async def create_post(
             if not summary:
                 summary = "来自 AI答研所 的对话分享"
 
+    # 内容安全检查（AI 生成后的最终内容）
+    err = validate_post_content(title, summary)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+
+    check_result = await full_content_check(
+        text=summary or "",
+        db=db,
+        user_id=current_user.id,
+        content_type="post",
+        title=title,
+    )
+    if not check_result["passed"]:
+        raise HTTPException(status_code=422, detail=check_result["reason"])
+
     post = Post(
         user_id=current_user.id,
         conversation_id=conversation.id,
@@ -227,6 +228,18 @@ async def create_post(
     db.add(post)
     db.commit()
     db.refresh(post)
+
+    # 异步建立向量索引（不阻塞响应）
+    try:
+        from app.services.embedding_service import EmbeddingService
+        from app.services.vector_store import VectorStore
+        text = f"{post.title} {post.summary or ''}"
+        embedding = await EmbeddingService.embed_text(text)
+        if embedding:
+            store = VectorStore()
+            store.add_post(post.id, post.title, current_user.username, embedding, post.summary or "")
+    except Exception:
+        pass  # 索引失败不影响发帖
 
     return PostItem(
         id=post.id,
@@ -280,6 +293,7 @@ def get_post(
 
     return PostDetail(
         id=post.id,
+        user_id=post.user_id,
         title=post.title,
         summary=post.summary,
         category=post.category,
@@ -331,3 +345,30 @@ def toggle_like(
         create_notification(db, post.user_id, current_user.id, "like", post_id)
         db.commit()
         return LikeResponse(liked=True, likes_count=post.likes_count)
+
+
+# ── 删除帖子 ─────────────────────────────────────────────
+
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(
+    post_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """作者删除自己的帖子"""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只能删除自己的帖子")
+
+    db.delete(post)
+    db.commit()
+
+    # 同步删除向量索引
+    try:
+        from app.services.vector_store import VectorStore
+        store = VectorStore()
+        store.delete_post(post_id)
+    except Exception:
+        pass

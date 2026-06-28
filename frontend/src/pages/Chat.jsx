@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
 import { IconSendHorizonal, IconLoader, IconFlask, IconChevronDown, IconChevronRight, IconMessageSquare } from '../components/Icons'
+import CitationBadge from '../components/CitationBadge'
 
 function ReasoningBlock({ content }) {
   const [expanded, setExpanded] = useState(true)
@@ -61,6 +62,7 @@ export default function Chat() {
   const showShareModal = useStore((s) => s.showShareModal)
 
   const [input, setInput] = useState('')
+  const [citations, setCitations] = useState(null)
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function Chat() {
     if (!input.trim() || isStreaming) return
     const message = input.trim()
     setInput('')
+    setCitations(null)  // 清除上一轮的引用
     addMessage({ role: 'user', content: message })
     setIsStreaming(true)
     resetStreaming()
@@ -121,6 +124,8 @@ export default function Chat() {
           } else if (data.type === 'error') {
             alert(data.content)
             setIsStreaming(false)
+          } else if (data.type === 'citations') {
+            setCitations(data.content)
           }
         }
       }
@@ -177,12 +182,22 @@ export default function Chat() {
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{streamingContent}</ReactMarkdown>
                 </div>
+                {citations && <CitationBadge citations={citations} />}
                 <span className="inline-block w-2 h-4 rounded-sm ml-0.5 animate-pulse" style={{ backgroundColor: 'var(--color-brand-500)' }} />
               </div>
             </div>
           )}
 
           <div ref={messagesEndRef} />
+
+          {/* 流结束后显示引用来源 */}
+          {citations && !isStreaming && (
+            <div className="flex justify-start animate-in">
+              <div className="max-w-[80%] w-full">
+                <CitationBadge citations={citations} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 三按钮 */}

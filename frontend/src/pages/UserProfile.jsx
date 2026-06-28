@@ -38,7 +38,7 @@ export default function UserProfile() {
     try {
       const { data } = await api.get(`/users/${id}/posts?page=1&page_size=20`)
       if (tabRef.current === 'posts') setPosts(data.items || [])
-    } catch { /* ignore */ }
+    } catch (e) { console.error('获取用户数据失败:', e) }
     finally { if (tabRef.current === 'posts') setLoading(false) }
   }
 
@@ -47,7 +47,7 @@ export default function UserProfile() {
     try {
       const { data } = await api.get('/bookmarks?page=1&page_size=20')
       if (tabRef.current === 'bookmarks') setPosts(data.items || [])
-    } catch { /* ignore */ }
+    } catch (e) { console.error('获取用户数据失败:', e) }
     finally { if (tabRef.current === 'bookmarks') setLoading(false) }
   }
 

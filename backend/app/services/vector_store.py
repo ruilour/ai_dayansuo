@@ -1,0 +1,159 @@
+import os
+import shutil
+import logging
+import chromadb
+from chromadb.config import Settings
+
+logger = logging.getLogger(__name__)
+
+CHROMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "chroma_db")
+# 余弦距离阈值，低于此值视为相关（0=完全相同，2=完全相反）
+MIN_RELEVANCE_DISTANCE = 0.6
+
+
+class VectorStore:
+    """ChromaDB 向量存储封装
+
+    单例模式，所有模块共用同一 ChromaDB 客户端和 posts 集合。
+    """
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
+        try:
+            self.client = chromadb.PersistentClient(
+                path=CHROMA_DIR,
+                settings=Settings(anonymized_telemetry=False),
+            )
+            self.collection = self.client.get_or_create_collection(
+                name="posts",
+                metadata={"hnsw:space": "cosine"},
+            )
+        except Exception:
+            # ChromaDB 损坏，重建
+            if os.path.exists(CHROMA_DIR):
+                shutil.rmtree(CHROMA_DIR)
+            self.client = chromadb.PersistentClient(
+                path=CHROMA_DIR,
+                settings=Settings(anonymized_telemetry=False),
+            )
+            self.collection = self.client.get_or_create_collection(
+                name="posts",
+                metadata={"hnsw:space": "cosine"},
+            )
+
+    def add_post(
+        self,
+        post_id: int,
+        title: str,
+        username: str,
+        embedding: list[float],
+        summary: str = "",
+    ):
+        """存入帖子向量"""
+        self.collection.upsert(
+            ids=[str(post_id)],
+            embeddings=[embedding],
+            metadatas=[{
+                "post_id": post_id,
+                "title": title[:200],
+                "username": username[:50],
+                "summary": summary[:500],
+            }],
+            documents=[(title + " " + summary)[:2000]],
+        )
+
+    def search(self, query_embedding: list[float], top_k: int = 5) -> list[dict]:
+        """检索 Top-K 相关帖子（已按距离阈值过滤，返回 <= top_k 条）"""
+        # 多取一些，过滤后仍有足够结果
+        fetch_n = min(top_k * 3, 50)
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=fetch_n,
+        )
+        items = []
+        if not results["ids"] or not results["ids"][0]:
+            return items
+        for i in range(len(results["ids"][0])):
+            distance = results["distances"][0][i] if results.get("distances") else 0
+            if distance > MIN_RELEVANCE_DISTANCE:
+                continue  # 距离过大，不相关，跳过
+            items.append({
+                "post_id": int(results["ids"][0][i]),
+                "title": results["metadatas"][0][i].get("title", ""),
+                "username": results["metadatas"][0][i].get("username", ""),
+                "summary": results["metadatas"][0][i].get("summary", ""),
+                "distance": distance,
+            })
+        return items
+
+    def delete_post(self, post_id: int):
+        """删帖时同步删除向量"""
+        try:
+            self.collection.delete(ids=[str(post_id)])
+        except Exception:
+            logger.warning("Failed to delete vector for post %d", post_id, exc_info=True)
+
+    def count(self) -> int:
+        """知识库帖子总数"""
+        return self.collection.count()
+
+
+async def rag_search(query_text: str, top_k: int = 5) -> list[dict]:
+    """对外检索接口：query_text → 向量 → ChromaDB 检索
+
+    调用方自行捕获异常。如果 EmbeddingService 返回 None（API 不可用等），
+    直接返回空列表，保证降级安全。
+    """
+    from app.services.embedding_service import EmbeddingService
+    embedding = await EmbeddingService.embed_text(query_text)
+    if not embedding:
+        return []
+    store = VectorStore()
+    return store.search(embedding, top_k)
+
+
+async def _reindex_all_posts_async(db):
+    """异步遍历所有帖子并建立向量索引"""
+    from app.models.post import Post
+    from app.services.embedding_service import EmbeddingService
+    posts = db.query(Post).filter(Post.is_hidden == False).all()
+    store = VectorStore()
+    count = 0
+    for p in posts:
+        text = f"{p.title} {p.summary or ''}"
+        if not text.strip():
+            continue
+        try:
+            embedding = await EmbeddingService.embed_text(text)
+            if embedding:
+                username = p.user.username if p.user else "unknown"
+                store.add_post(p.id, p.title, username, embedding, p.summary or "")
+                count += 1
+        except Exception:
+            continue
+    return count
+
+
+def reindex_all_posts(db):
+    """重建所有帖子索引（脚本用）
+
+    遍历数据库中所有非隐藏帖子，用 EmbeddingService 生成向量并存入
+    ChromaDB。使用 asyncio.run() 调用异步内部函数。
+
+    Args:
+        db: SQLAlchemy Session 对象
+    Returns:
+        int: 成功索引的帖子数量
+    """
+    import asyncio
+    return asyncio.run(_reindex_all_posts_async(db))

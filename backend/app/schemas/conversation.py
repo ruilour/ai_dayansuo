@@ -30,9 +30,14 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     message_count: int = 0
+    has_post: bool = False
 
     class Config:
         from_attributes = True
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = None
 
 
 class ConversationSave(BaseModel):

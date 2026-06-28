@@ -6,6 +6,7 @@ export default function ActionButtons() {
   const currentConversation = useStore((s) => s.currentConversation)
   const clearConversation = useStore((s) => s.clearConversation)
   const markConversationSaved = useStore((s) => s.markConversationSaved)
+  const triggerSidebarRefresh = useStore((s) => s.triggerSidebarRefresh)
   const setShowShareModal = useStore((s) => s.setShowShareModal)
   const setShareConversationId = useStore((s) => s.setShareConversationId)
 
@@ -20,6 +21,7 @@ export default function ActionButtons() {
         return
       }
     }
+    triggerSidebarRefresh()
     setShareConversationId(currentConversation.id)
     setShowShareModal(true)
   }

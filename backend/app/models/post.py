@@ -10,7 +10,7 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     summary = Column(String(500), nullable=False)
     full_content = Column(Text, nullable=False)

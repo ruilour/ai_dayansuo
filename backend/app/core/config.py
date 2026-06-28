@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-v4-flash"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/chat/completions"
+    DEEPSEEK_EMBEDDING_BASE_URL: str = "https://api.siliconflow.cn/v1/embeddings"
+    DEEPSEEK_EMBEDDING_MODEL: str = "BAAI/bge-large-zh-v1.5"
+    DEEPSEEK_EMBEDDING_API_KEY: str = ""  # 默认复用 DEEPSEEK_API_KEY，可单独指定
     TURNSTILE_SECRET_KEY: str = ""
     TURNSTILE_SITE_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:5173"

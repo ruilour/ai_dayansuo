@@ -44,7 +44,7 @@ async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
             rag_context = []
 
     # 构建 system prompt
-    system_content = "你是一个 AI 问答助手，请用中文回答用户的问题。"
+    system_content = "你是「AI答研所」的 AI 助手（网站作者：ruilour）。你的任务是帮助用户解答问题，结合社区知识给出有据可依的回答。请用中文回答。"
     if rag_context:
         context_xml_parts = ['<context>']
         for src in rag_context:

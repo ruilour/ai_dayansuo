@@ -7,6 +7,8 @@ from chromadb.config import Settings
 logger = logging.getLogger(__name__)
 
 CHROMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "chroma_db")
+# 余弦距离阈值，低于此值视为相关（0=完全相同，2=完全相反）
+MIN_RELEVANCE_DISTANCE = 0.6
 
 
 class VectorStore:
@@ -71,21 +73,26 @@ class VectorStore:
         )
 
     def search(self, query_embedding: list[float], top_k: int = 5) -> list[dict]:
-        """检索 Top-K 相关帖子"""
+        """检索 Top-K 相关帖子（已按距离阈值过滤，返回 <= top_k 条）"""
+        # 多取一些，过滤后仍有足够结果
+        fetch_n = min(top_k * 3, 50)
         results = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=min(top_k, 20),
+            n_results=fetch_n,
         )
         items = []
         if not results["ids"] or not results["ids"][0]:
             return items
         for i in range(len(results["ids"][0])):
+            distance = results["distances"][0][i] if results.get("distances") else 0
+            if distance > MIN_RELEVANCE_DISTANCE:
+                continue  # 距离过大，不相关，跳过
             items.append({
                 "post_id": int(results["ids"][0][i]),
                 "title": results["metadatas"][0][i].get("title", ""),
                 "username": results["metadatas"][0][i].get("username", ""),
                 "summary": results["metadatas"][0][i].get("summary", ""),
-                "distance": results["distances"][0][i] if results.get("distances") else 0,
+                "distance": distance,
             })
         return items
 

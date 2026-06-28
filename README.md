@@ -189,8 +189,7 @@ ai_dayansuo/
 │   ├── create_admin.py             # 管理员账户创建
 │   └── reindex_posts.py            # ChromaDB 重建索引
 ├── docs/
-│   ├── database-schema.md          # 数据库表结构
-│   └── tech-stack-resume.md        # 面试技术栈指南
+│   └── database-schema.md          # 数据库表结构
 └── README.md
 ```
 

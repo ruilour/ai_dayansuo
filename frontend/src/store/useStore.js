@@ -80,6 +80,8 @@ export const useStore = create((set, get) => {
 
     setSavedConversations: (list) => set({ savedConversations: list }),
     setSelectedSavedId: (id) => set({ selectedSavedId: id }),
+    sidebarRefreshKey: 0,
+    triggerSidebarRefresh: () => set((s) => ({ sidebarRefreshKey: s.sidebarRefreshKey + 1 })),
 
     // === 广场 ===
     posts: [],

@@ -85,8 +85,8 @@ export default function PostDetail() {
         likes_count: data.likes_count,
       }))
       showFeedback(data.liked ? '已点赞' : '已取消点赞')
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('操作失败:', e)
     } finally {
       setLiking(false)
     }
@@ -107,8 +107,8 @@ export default function PostDetail() {
         bookmarks_count: data.bookmarks_count,
       }))
       showFeedback(data.bookmarked ? '已收藏' : '已取消收藏')
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('操作失败:', e)
     } finally {
       setBookmarking(false)
     }
@@ -320,7 +320,7 @@ export default function PostDetail() {
           // 刷新评论计数
           api.get(`/posts/${post.id}`).then(({ data }) => {
             setPost((prev) => ({ ...prev, comments_count: data.comments_count }))
-          }).catch(() => {})
+          }).catch((e) => console.error('刷新评论计数失败:', e))
         }}
       />
     </div>

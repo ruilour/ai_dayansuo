@@ -10,6 +10,7 @@ from app.models.message import Message
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationResponse,
+    ConversationUpdate,
     MessageSend,
     MessageResponse,
 )
@@ -17,6 +18,20 @@ from app.services.conversation_service import get_conversation_messages
 from app.services.ai_service import stream_chat
 
 router = APIRouter(prefix="/api/conversations", tags=["对话"])
+
+
+def _conv_to_response(c: Conversation) -> ConversationResponse:
+    """Conversation ORM → ConversationResponse"""
+    return ConversationResponse(
+        id=c.id,
+        title=c.title,
+        is_saved=c.is_saved,
+        saved_at=c.saved_at,
+        created_at=c.created_at,
+        updated_at=c.updated_at,
+        message_count=len(c.messages),
+        has_post=c.post is not None,
+    )
 
 
 @router.get("", response_model=list[ConversationResponse])
@@ -34,18 +49,7 @@ def list_conversations(
         .order_by(Conversation.updated_at.desc())
         .all()
     )
-    result = []
-    for c in conversations:
-        result.append(ConversationResponse(
-            id=c.id,
-            title=c.title,
-            is_saved=c.is_saved,
-            saved_at=c.saved_at,
-            created_at=c.created_at,
-            updated_at=c.updated_at,
-            message_count=len(c.messages),
-        ))
-    return result
+    return [_conv_to_response(c) for c in conversations]
 
 
 @router.post("", response_model=ConversationResponse)
@@ -62,15 +66,7 @@ def create_conversation(
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
-    return ConversationResponse(
-        id=conversation.id,
-        title=conversation.title,
-        is_saved=conversation.is_saved,
-        saved_at=conversation.saved_at,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
-        message_count=0,
-    )
+    return _conv_to_response(conversation)
 
 
 @router.get("/{conversation_id}/messages", response_model=list[MessageResponse])
@@ -154,15 +150,27 @@ def save_conversation(
     db.commit()
     db.refresh(conversation)
 
-    return ConversationResponse(
-        id=conversation.id,
-        title=conversation.title,
-        is_saved=conversation.is_saved,
-        saved_at=conversation.saved_at,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
-        message_count=len(conversation.messages),
-    )
+    return _conv_to_response(conversation)
+
+
+@router.patch("/{conversation_id}", response_model=ConversationResponse)
+def update_conversation(
+    conversation_id: int,
+    body: ConversationUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改对话标题"""
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="对话不存在")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作此对话")
+    if body.title is not None:
+        conversation.title = body.title
+    db.commit()
+    db.refresh(conversation)
+    return _conv_to_response(conversation)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -27,5 +27,11 @@ uploads/*
 # ChromaDB 向量数据库持久化目录
 chroma_db/
 
+# Debug images
+image*.png
+
+# Superpowers internal docs
+docs/superpowers/
+
 # Django
 *.log

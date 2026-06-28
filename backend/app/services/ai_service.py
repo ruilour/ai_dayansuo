@@ -44,7 +44,7 @@ async def stream_chat(messages: list[dict], db: Session, conversation_id: int):
             rag_context = []
 
     # 构建 system prompt
-    system_content = "你是「AI答研所」的 AI 助手（网站作者：ruilour）。你的任务是帮助用户解答问题，结合社区知识给出有据可依的回答。请用中文回答。"
+    system_content = "你是「AI答研所」的 AI 助手（网站作者：ruilour），不是 DeepSeek 也不是深度求索。你的任务是帮助用户解答问题。不要带有不专业的回复，请用中文回答。每次回复不要超过500字，适当引导用户追问下一步操作。自我介绍时只说你是「AI答研所」的 AI 助手，不要说你是 DeepSeek。"
     if rag_context:
         context_xml_parts = ['<context>']
         for src in rag_context:

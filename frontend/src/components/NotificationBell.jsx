@@ -26,7 +26,7 @@ export default function NotificationBell() {
     try {
       const { data } = await api.get('/notifications/unread-count')
       setUnreadCount(data.count)
-    } catch { /* ignore */ }
+    } catch (e) { console.error('通知操作失败:', e) }
   }, [])
 
   // Poll every 15s
@@ -62,7 +62,7 @@ export default function NotificationBell() {
       try {
         const { data } = await api.get('/notifications?page=1&page_size=10')
         setNotifications(data.items || [])
-      } catch { /* ignore */ }
+      } catch (e) { console.error('通知操作失败:', e) }
     }
     setOpen(!open)
   }
@@ -72,7 +72,7 @@ export default function NotificationBell() {
       await api.post('/notifications/read-all')
       setUnreadCount(0)
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
-    } catch { /* ignore */ }
+    } catch (e) { console.error('通知操作失败:', e) }
   }
 
   const handleClick = (n) => {

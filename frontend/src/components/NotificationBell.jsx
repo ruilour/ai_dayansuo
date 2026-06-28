@@ -77,7 +77,7 @@ export default function NotificationBell() {
 
   const handleClick = (n) => {
     setOpen(false)
-    navigate(`/post/${n.post_id}`)
+    if (n.post_id) navigate(`/post/${n.post_id}`)
   }
 
   const iconMap = {
@@ -133,6 +133,8 @@ export default function NotificationBell() {
                         {n.type === 'reply' && ' 回复了你的评论'}
                         {n.type === 'like' && ' 赞了你的帖子'}
                         {n.type === 'bookmark' && ' 收藏了你的帖子'}
+                        {n.type === 'system_mute' && ' 你已被管理员禁言'}
+                        {n.type === 'system_ban' && ' 你已被管理员封号'}
                       </p>
                       {n.post_title && (
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-placeholder)' }}>「{n.post_title}」</p>

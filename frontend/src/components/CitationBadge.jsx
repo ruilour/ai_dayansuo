@@ -9,7 +9,7 @@ function CitationBadge({ citations }) {
         {citations.map((c, i) => (
           <a
             key={i}
-            href={`/posts/${c.post_id}`}
+            href={`/post/${c.post_id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30
